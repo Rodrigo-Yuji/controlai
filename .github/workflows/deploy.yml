@@ -10,7 +10,6 @@ on:
         type: string
 permissions:
   contents: read
-  actions: read
   pages: write
   id-token: write
 concurrency:
@@ -28,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
       # Recover the orphaned deployment once; later incidents can use the manual input.
       - name: Cancelar publicação antiga travada
-        if: inputs.cancel_deployment || (github.event_name == 'push' && github.event.before == '298c6f0fd3951a7bc4799f3c1a7a60614cd276de' && github.run_attempt == 1)
+        if: inputs.cancel_deployment || (github.event_name == 'push' && github.event.before == '2f1abfd6c906c879a22a31f6f0c268799ca2dbc9' && github.run_attempt == 1)
         uses: actions/github-script@v8
         env:
           PAGES_DEPLOYMENT_TO_CANCEL: ${{ inputs.cancel_deployment || 'f0bcd7115e2601e42802bc05ea2625866fcfa26f' }}
@@ -38,19 +37,11 @@ jobs:
             if (!/^(?:[a-f0-9]{40}|[0-9]+)$/i.test(deploymentId)) {
               throw new Error('Informe um SHA completo ou ID numérico de publicação.');
             }
-            if (deploymentId === 'f0bcd7115e2601e42802bc05ea2625866fcfa26f') {
-              const {data: logs} = await github.request('GET /repos/{owner}/{repo}/actions/jobs/{job_id}/logs', {
-                ...context.repo, job_id: 126816270671
-              });
-              const match = String(logs).match(/Created deployment for f0bcd7115e2601e42802bc05ea2625866fcfa26f, ID: ([a-zA-Z0-9_-]+)/);
-              if (!match) throw new Error('Não foi possível identificar o ID do Pages nos logs da primeira tentativa.');
-              deploymentId = match[1];
-            }
             const parameters = {...context.repo, deploymentId};
             try {
               const {data} = await github.request('GET /repos/{owner}/{repo}/pages/deployments/{deploymentId}', parameters);
               core.notice(`Publicação anterior ${deploymentId}: ${data.status}`);
-              const terminal = ['succeed', 'deployment_cancelled', 'deployment_failed', 'deployment_perms_error', 'deployment_content_failed', 'deployment_lost'];
+              const terminal = ['succeed', 'deployment_failed', 'deployment_perms_error', 'deployment_content_failed', 'deployment_lost'];
               if (terminal.includes(data.status)) return;
               await github.request('POST /repos/{owner}/{repo}/pages/deployments/{deploymentId}/cancel', parameters);
               core.notice(`Cancelamento solicitado para ${deploymentId}.`);
