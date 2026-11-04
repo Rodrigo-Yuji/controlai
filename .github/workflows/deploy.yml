@@ -1,0 +1,55 @@
+
+cat > .github/workflows/deploy.yml <<'EOF'
+name: Deploy ControlAI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Instalar dependencias
+        run: npm ci
+        working-directory: controlai-completo
+
+      - name: Compilar ControlAI
+        run: npm run build
+        working-directory: controlai-completo
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Enviar arquivos compilados
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: controlai-completo/dist
+
+      - name: Publicar aplicativo
+        id: deployment
+        uses: actions/deploy-pages@v4
+EOF
