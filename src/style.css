@@ -45,11 +45,14 @@ html{scroll-padding-bottom:110px}body{overflow-x:hidden}.app{width:100%;overflow
 .record .secondary{min-width:max-content;min-height:38px}
 @media(max-width:600px){.panel{overflow-wrap:anywhere}.record{gap:8px}.record .secondary{font-size:.78rem;padding:8px}.filters{overflow-x:auto;flex-wrap:nowrap}.filters button{white-space:nowrap}.budgetgrid{grid-template-columns:1fr}}
 
-/* Espaço para o mês e o ano completos, incluindo o calendário nativo. */
-.top{height:auto;min-height:78px;flex-wrap:wrap;gap:12px}
+/* Mês compacto com acesso ao seletor nativo, sem quebrar o cabeçalho. */
+.top{height:auto;min-height:78px;flex-wrap:nowrap;gap:12px}.brand{min-width:0}.brandicon{flex-shrink:0}.brand strong{white-space:nowrap}
 .periodwrap{flex:0 0 auto;margin-left:auto}
-.periodo input{width:220px;min-width:220px;max-width:none;font-size:16px}
-@media(max-width:700px){.top{min-height:64px}}
+.periodo{position:relative;width:124px;min-height:40px;justify-content:center;gap:8px;border:1px solid #dce3ee;border-radius:10px;background:var(--surface,#fff);color:inherit;font-size:14px;white-space:nowrap}
+.periodo svg{display:block;flex-shrink:0}.periodo input{position:absolute;inset:0;width:100%;min-width:0;max-width:none;height:100%;padding:0;border:0;opacity:0;cursor:pointer;font-size:16px}
+.periodo:focus-within{outline:3px solid #93b4ff;outline-offset:2px}
+@media(max-width:700px){.top{min-height:64px;gap:8px}.brand{gap:8px}.brand small{display:none}.periodo{width:104px;font-size:13px}.montharrow{padding:3px;min-width:29px}}
+@media(max-width:370px){.brand{gap:6px}.brandicon{width:32px;height:32px}.brand strong{font-size:15px}.periodo{width:100px}.montharrow{min-width:27px}.top{gap:6px}}
 
 .fields textarea{font:inherit;width:100%;min-height:90px;padding:12px;border:1px solid #dce3ee;border-radius:10px;background:white;color:#19263a;resize:vertical}
 .recordnote{flex:1;min-width:0;margin:0 12px;color:#63728b;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}

@@ -38,3 +38,59 @@ A aba **Assistente** na navegação inferior permite adicionar lançamentos à c
 - Planilhas e comandos digitados funcionam offline depois que a PWA foi carregada e seu cache ativado. O reconhecimento de voz é fornecido pelo navegador, exige permissão de microfone e pode depender de internet/enviar áudio ao serviço dele. O ControlAI não grava áudio. Quando indisponível, use texto ou o ditado do teclado.
 
 Para executar os testes das regras locais, use `npm test` com Node.js 22.18+ (ambiente de desenvolvimento validado com Node.js 24). `npm run build` e `npm run lint` continuam disponíveis.
+
+## Aplicativo Android com SQLite
+
+O projeto inclui uma versão Android com Capacitor. **No aplicativo instalado, os dados financeiros ficam no SQLite nativo**, em um arquivo privado do pacote `com.controlai.app`. A versão web/PWA continua usando o IndexedDB existente: publicar o site não converte os dados do navegador em um arquivo nativo.
+
+O app não exige servidor, conta online nem API paga para armazenar as finanças. A seleção de conta e o tema continuam sendo preferências da interface; contas, lançamentos, categorias, salários, orçamento, recorrências, reservas e fechamentos usam o banco selecionado pela plataforma. Em Ajustes, “Sobre o ControlAI” informa qual armazenamento está em uso.
+
+### Gerar e instalar para teste
+
+Requisitos: Node.js 22.18+ (validado com 24), JDK 21, Android SDK 36 e as ferramentas de compilação exigidas pelo Gradle. Instale/configure esses componentes pelo Android Studio ou pelas ferramentas oficiais de linha de comando.
+
+```bash
+npm ci
+npm run android:sync
+npm run android:open
+```
+
+No Android Studio, abra/executa o projeto em um aparelho ou emulador. Se `JAVA_HOME` e `ANDROID_HOME` já estiverem configurados, também é possível gerar o APK pelo terminal:
+
+```bash
+npm run android:build
+```
+
+O APK de teste será criado em `android/app/build/outputs/apk/debug/app-debug.apk`. Ele usa assinatura de desenvolvimento, não é uma publicação na Play Store e precisa ser validado em aparelho antes de uso definitivo. Atualizações instaladas sobre o mesmo aplicativo precisam manter o mesmo identificador e a mesma chave de assinatura; exporte backup antes de trocar de instalação ou assinatura.
+
+`npm run build:native` gera assets com caminhos adequados à origem local do Capacitor, sem registrar service worker. `npm run build` continua gerando o site com base `/controlai/` para o Pages. O comando `android:sync` recompila os assets nativos antes de copiá-los para o projeto Android.
+
+### Transferir seus dados do site
+
+1. No site atual, use **Ajustes → Exportar backup JSON**; pode usar a opção de senha.
+2. Instale/abra o APK e conclua o primeiro acesso; a renda pode ser configurada mais tarde.
+3. No Android, use **Ajustes → Importar backup**, selecione o JSON e informe a senha, quando houver. A restauração substitui os dados daquela instalação após confirmação, dentro de uma transação SQLite.
+4. Confira contas, saldos, parcelas, observações e fechamentos antes de deixar de usar a versão anterior.
+
+O aplicativo nativo não consegue ler automaticamente o IndexedDB do Chrome ou do site no GitHub Pages, pois são origens distintas. A transferência entre eles é feita por backup, sem sincronização automática.
+
+Se uma instalação Capacitor anterior já tiver IndexedDB na **mesma WebView**, a primeira abertura migra os registros para o SQLite vazio em uma única transação. A origem não é apagada. O processo registra sua conclusão e não repete a importação; se houver falha, reverte a cópia e mantém a origem. Um SQLite que já contenha dados não é sobrescrito/mesclado automaticamente. Uma cópia bruta da migração fica em `storage_meta`, inclusive tabelas históricas sem correspondência na interface atual.
+
+### Persistência e backup
+
+O arquivo SQLite é independente dos dados do navegador Chrome. Desinstalar o aplicativo ou limpar **os dados do próprio aplicativo** ainda pode apagá-lo. O banco desta versão não recebe uma senha própria; o backup opcionalmente criptografado com AES-GCM continua disponível.
+
+No Android, exportar abre o compartilhamento nativo para escolher onde guardar o arquivo. Apenas a pasta temporária de backups é exposta pelo FileProvider; o banco privado não é compartilhado. O backup automático do pacote pelo Android foi desativado, evitando cópias automáticas não solicitadas. Faça e guarde backups manuais.
+
+### Camada de armazenamento e validação
+
+- `src/storage/legacy.ts`: mantém os esquemas e migrações Dexie anteriores para a web.
+- `src/storage/web.ts`: usa o IndexedDB existente e a observação de consultas do Dexie.
+- `src/storage/sqlite.ts`: schema SQLite versão 1, consultas por conta, chaves, índices, unicidade de categorias e transações atômicas. O formato interno preserva os campos dos registros em JSON, com chaves e conta indexadas em colunas SQL.
+- `src/storage/native.ts`: conexão nativa com `@capacitor-community/sqlite`. Não usa SQLite em WebAssembly/IndexedDB como substituto no Android.
+- `src/storage/migration.ts`: conversão não destrutiva do snapshot legado.
+- `src/storage/useLiveQuery.ts`: atualiza a interface depois de commits e evita reutilizar dados da conta anterior enquanto a nova consulta carrega.
+
+Callbacks de `db.transaction` recebem `tx` explicitamente: use `tx` nas operações internas. Isso evita que uma gravação independente entre por engano na transação assíncrona de outra operação.
+
+`npm test` executa as regras do Assistente e os testes de armazenamento com SQLite real (`node:sqlite`): persistência em arquivo, rollback, concorrência, isolamento de contas, migração/idempotência, arquivo legado preservado e rejeição de centavos inválidos. A compilação do APK não substitui os testes do plugin e do compartilhamento em um aparelho Android real.

@@ -129,11 +129,11 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
     busy.current = true; setSaving(true); setError(''); setMessage('');
     try {
       // Read account ownership, categories, closures and duplicates again inside one transaction.
-      const result = await db.transaction('rw', [db.contas, db.categorias, db.fechamentos, db.lancamentos], async () => {
-        if (!await db.contas.get(conta.id)) throw new Error('Esta conta não existe mais. Selecione outra conta.');
-        const freshCategories = await db.categorias.where('contaId').equals(conta.id).toArray();
-        const freshClosed = (await db.fechamentos.where('contaId').equals(conta.id).toArray()).map(item => item.mes);
-        const keys = new Set((await db.lancamentos.where('contaId').equals(conta.id).toArray()).map(fingerprint));
+      const result = await db.transaction([db.contas, db.categorias, db.fechamentos, db.lancamentos],async(tx)=>{
+        if (!await tx.contas.get(conta.id)) throw new Error('Esta conta não existe mais. Selecione outra conta.');
+        const freshCategories = await tx.categorias.where('contaId').equals(conta.id).toArray();
+        const freshClosed = (await tx.fechamentos.where('contaId').equals(conta.id).toArray()).map(item => item.mes);
+        const keys = new Set((await tx.lancamentos.where('contaId').equals(conta.id).toArray()).map(fingerprint));
         const entries: Lancamento[] = [];
         let skipped = 0;
         for (const draft of drafts.filter(item => item.selecionada)) {
@@ -146,7 +146,7 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
           if (closureError) throw new Error(`Linha ${draft.linha}: ${closureError}`);
           entries.push(entry); keys.add(key);
         }
-        if (entries.length) await db.lancamentos.bulkAdd(entries);
+        if (entries.length) await tx.lancamentos.bulkAdd(entries);
         return {saved:entries.length, skipped};
       });
       setDrafts([]); setCommand('');
