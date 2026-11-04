@@ -1,33 +1,26 @@
-# ControlAI v4 — Mobile First, Offline
+# ControlAI v4.2 — Mobile First, Offline
 
-Controle financeiro PWA para uso local no mesmo dispositivo, com contas individuais e conjuntas.
+Aplicativo PWA de finanças pessoais (React, TypeScript, Vite, Dexie/IndexedDB).
 
-## Novidades
-- Contas separadas (lançamentos, categorias, recorrências, reservas, orçamento e salários), com conta padrão.
-- Conta conjunta com dois cadastros de salários e benefícios.
-- Base de orçamento alternável entre receitas recebidas + previstas do mês e salários/benefícios configurados.
-- Simulador de distribuição de fixos, variáveis e reserva.
-- Modo escuro, logo de dinheiro e setas para navegar entre meses.
-- Exportação e importação de backup com contas.
+## Funcionalidades v4.2
 
-## Desenvolvimento
+- Fechamento e reabertura de mês por conta: bloqueia edição, exclusão e confirmação de lançamentos do mês fechado.
+- Compras parceladas: informe valor total e número de parcelas; centavos são distribuídos sem perda, com vencimentos mensais previstos. Exclusão em lote remove apenas parcelas previstas de meses abertos.
+- Orçamento semanal de despesas variáveis: semanas terminam no domingo, limite mensal distribuído igualmente pelas semanas.
+- Contas a vencer: previsões do mês selecionado com data até sete dias à frente, incluindo atrasadas do mesmo mês.
+- Backup JSON opcionalmente criptografado com AES-GCM e senha (PBKDF2 SHA-256, 250 mil iterações). A senha não é recuperável.
+- Mantidas as funcionalidades anteriores: contas individuais/conjuntas, salários, categorias, recorrências, reservas, orçamento, modo escuro e assistente inicial.
+
+## Instalação
+
 ```bash
 npm install
 npm run build
 npm run dev -- --host 0.0.0.0
 ```
 
-GitHub Pages: publique o conteúdo **na raiz do repositório**. O workflow `.github/workflows/deploy.yml` compila e publica `dist` automaticamente ao enviar commits para `main`. O Vite usa `base: '/controlai/'`.
+Envie os arquivos extraídos para a raiz do repositório (não a pasta ZIP). A publicação do GitHub Pages usa `.github/workflows/deploy.yml`.
 
 ## Atenção
-- **Faça backup JSON antes de atualizar.** Dados são armazenados no IndexedDB deste navegador/dispositivo, sem sincronização entre celulares.
-- A atualização do banco migra registros anteriores para a conta `Minha conta` e converte o salário legado em `principal:1`.
-- O backup JSON contém dados financeiros legíveis. Guarde-o em local seguro.
-- A compilação não foi executada neste ambiente porque as dependências npm não estavam disponíveis offline. Rode `npm install && npm run build` no Codespaces e verifique os fluxos antes de usar com dados importantes.
 
-## v4.1
-- Assistente de primeiro acesso (conta individual/conjunta, salário líquido, VR, benefício e aviso de configurações).
-- Edição de nome e tipo de conta, exclusão com confirmação e proteção da última conta.
-- Exclusão de conta remove apenas seus dados; se for padrão, outra conta torna-se padrão.
-- Corrige categorias ausentes em contas novas e contas antigas sem categorias, sem misturar categorias entre contas.
-- Antes de atualizar, exporte backup JSON. Valide o build e os fluxos no Codespaces.
+Dados ficam no IndexedDB do dispositivo. Exporte backup antes de atualizar. Backup sem senha contém dados em texto legível. A versão deve ser testada no Codespaces antes da publicação.

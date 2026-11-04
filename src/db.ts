@@ -2,15 +2,18 @@ import Dexie, { type Table } from 'dexie';
 export type Tipo = 'receita' | 'despesa';
 export type Natureza = 'fixo' | 'variavel';
 export type Status = 'previsto' | 'confirmado';
-export interface Lancamento { contaId?: string; id?: number; descricao: string; valorCentavos: number; tipo: Tipo; natureza: Natureza; categoria: string; data: string; status: Status; observacao?: string; grupoRecorrencia?: string; recorrenciaId?: number; }
+export interface Lancamento { contaId?: string; id?: number; descricao: string; valorCentavos: number; tipo: Tipo; natureza: Natureza; categoria: string; data: string; status: Status; observacao?: string; grupoRecorrencia?: string; recorrenciaId?: number; parcela?: Parcela; }
 export interface Categoria { contaId?: string; id?: number; nome: string; tipo: Tipo; natureza: Natureza; }
 export interface Recorrencia { contaId?: string; id?: number; descricao: string; valorCentavos: number; categoria: string; natureza: Natureza; tipo: Tipo; inicio: string; dia: number; ativa: boolean; }
 export interface Salario { id: string; contaId?: string; titular?: string; liquido: number; refeicao: number; beneficio: number; adicional: number; }
 export interface Configuracao { id: string; contaId?: string; baseReceita?: 'atual'|'prevista'; fixos: number; variaveis: number; reserva: number; }
 export interface Reserva { contaId?: string; id?: number; descricao: string; valorCentavos: number; data: string; }
+export interface Fechamento { id: string; contaId: string; mes: string; fechadoEm: string; }
+export interface Parcela { grupo: string; numero: number; total: number; }
 export interface Conta { id: string; nome: string; conjunta: boolean; padrao: boolean; }
 class ControlDB extends Dexie {
   contas!: Table<Conta, string>;
+  fechamentos!: Table<Fechamento, string>;
   lancamentos!: Table<Lancamento, number>;
   configuracoes!: Table<Configuracao, string>;
   reservas!: Table<Reserva, number>;
@@ -37,6 +40,7 @@ class ControlDB extends Dexie {
       if(salarioAntigo){await tx.table('salarios').put({...salarioAntigo,id:'principal:1',contaId:'principal'});await tx.table('salarios').delete('principal');}
       await tx.table('contas').put({id:'principal',nome:'Minha conta',conjunta:false,padrao:true});
     });
+    this.version(5).stores({fechamentos:'id, contaId, mes'});
   }
 }
 export const db = new ControlDB();

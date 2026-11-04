@@ -38,3 +38,9 @@ html{scroll-padding-bottom:110px}body{overflow-x:hidden}.app{width:100%;overflow
 .wizard-actions{display:flex;gap:10px;flex-wrap:wrap;}
 .wizard-actions>button{flex:1;}
 @media(max-width:600px){.onboarding-dialog{width:100%;border-radius:20px 20px 0 0;}}
+
+/* v4.2: ferramentas financeiras mobile-first */
+.backup-password{display:flex;flex-direction:column;gap:7px;margin:14px 0;font-weight:600}
+.backup-password input{width:100%;min-height:44px}
+.record .secondary{min-width:max-content;min-height:38px}
+@media(max-width:600px){.panel{overflow-wrap:anywhere}.record{gap:8px}.record .secondary{font-size:.78rem;padding:8px}.filters{overflow-x:auto;flex-wrap:nowrap}.filters button{white-space:nowrap}.budgetgrid{grid-template-columns:1fr}}
