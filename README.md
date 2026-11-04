@@ -38,3 +38,24 @@ Android: Chrome → menu → Instalar aplicativo/Adicionar à tela inicial. iOS:
 - Recorrências geradas não são atualizadas em lote ao editar uma ocorrência.
 - Os percentuais atuais se aplicam ao mês consultado, inclusive meses anteriores; snapshots históricos de regras ainda não estão implementados.
 - O relatório anual usa a data de lançamento e considera somente registros confirmados.
+
+
+## Novidades da versão 3
+- Logo PWA renovada.
+- Categorias editáveis em Ajustes, com natureza fixa ou variável vinculada ao lançamento.
+- Salário e benefícios em Ajustes, como referência percentual do Orçamento.
+- Reserva com depósitos e retiradas, saldo acumulado e histórico.
+- Pesquisa na aba Lançamentos.
+- Aba Recorrentes: despesas mensais sem data final, projetadas em meses futuros; encerrar a recorrência preserva lançamentos confirmados e elimina os futuros previstos vinculados.
+- Backup v3 inclui categorias, recorrências e salário; restaura backups anteriores compatíveis.
+
+### Publicação
+Extraia **o conteúdo desta pasta** diretamente na raiz do repositório GitHub, sem pasta adicional. Execute `npm install`, `npm run build` e faça commit/push. Configure Pages → GitHub Actions.
+
+### Dados
+Antes de substituir a aplicação, exporte um backup JSON da versão anterior. A migração Dexie mantém lançamentos, configurações e reservas já salvos no mesmo navegador.
+
+
+## Versão 3.1: mobile-first
+
+Layout responsivo otimizado para celulares: navegação fixa inferior, cartões compactos, filtros roláveis, botões com área de toque ampliada, formulários com fontes adequadas ao teclado móvel e edição de lançamentos em painel inferior. A versão desktop permanece responsiva.
