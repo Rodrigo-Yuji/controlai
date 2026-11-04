@@ -3,6 +3,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      cancel_deployment:
+        description: 'SHA ou ID de uma publicação do Pages travada (opcional)'
+        required: false
+        type: string
 permissions:
   contents: read
   pages: write
@@ -20,6 +25,30 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Recover the orphaned deployment once; later incidents can use the manual input.
+      - name: Cancelar publicação antiga travada
+        if: inputs.cancel_deployment || (github.event_name == 'push' && github.event.before == 'f585b1142fc40f52de8294ec69f520721811dd28' && github.run_attempt == 1)
+        uses: actions/github-script@v8
+        env:
+          PAGES_DEPLOYMENT_TO_CANCEL: ${{ inputs.cancel_deployment || 'f0bcd7115e2601e42802bc05ea2625866fcfa26f' }}
+        with:
+          script: |
+            const deploymentId = process.env.PAGES_DEPLOYMENT_TO_CANCEL;
+            if (!/^(?:[a-f0-9]{40}|[0-9]+)$/i.test(deploymentId)) {
+              throw new Error('Informe um SHA completo ou ID numérico de publicação.');
+            }
+            const parameters = {...context.repo, deploymentId};
+            try {
+              const {data} = await github.request('GET /repos/{owner}/{repo}/pages/deployments/{deploymentId}', parameters);
+              core.info(`Publicação anterior: ${data.status}`);
+              const terminal = ['succeed', 'deployment_cancelled', 'deployment_failed', 'deployment_perms_error', 'deployment_content_failed', 'deployment_lost'];
+              if (terminal.includes(data.status)) return;
+              await github.request('POST /repos/{owner}/{repo}/pages/deployments/{deploymentId}/cancel', parameters);
+              core.info(`Cancelamento solicitado para ${deploymentId}.`);
+            } catch (error) {
+              if (error.status === 404) core.info('A publicação anterior não existe mais.');
+              else throw error;
+            }
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
