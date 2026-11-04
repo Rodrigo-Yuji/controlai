@@ -24,3 +24,10 @@ GitHub Pages: publique o conteúdo **na raiz do repositório**. O workflow `.git
 - A atualização do banco migra registros anteriores para a conta `Minha conta` e converte o salário legado em `principal:1`.
 - O backup JSON contém dados financeiros legíveis. Guarde-o em local seguro.
 - A compilação não foi executada neste ambiente porque as dependências npm não estavam disponíveis offline. Rode `npm install && npm run build` no Codespaces e verifique os fluxos antes de usar com dados importantes.
+
+## v4.1
+- Assistente de primeiro acesso (conta individual/conjunta, salário líquido, VR, benefício e aviso de configurações).
+- Edição de nome e tipo de conta, exclusão com confirmação e proteção da última conta.
+- Exclusão de conta remove apenas seus dados; se for padrão, outra conta torna-se padrão.
+- Corrige categorias ausentes em contas novas e contas antigas sem categorias, sem misturar categorias entre contas.
+- Antes de atualizar, exporte backup JSON. Valide o build e os fluxos no Codespaces.
