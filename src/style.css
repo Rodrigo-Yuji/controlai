@@ -44,3 +44,9 @@ html{scroll-padding-bottom:110px}body{overflow-x:hidden}.app{width:100%;overflow
 .backup-password input{width:100%;min-height:44px}
 .record .secondary{min-width:max-content;min-height:38px}
 @media(max-width:600px){.panel{overflow-wrap:anywhere}.record{gap:8px}.record .secondary{font-size:.78rem;padding:8px}.filters{overflow-x:auto;flex-wrap:nowrap}.filters button{white-space:nowrap}.budgetgrid{grid-template-columns:1fr}}
+
+/* Espaço para o mês e o ano completos, incluindo o calendário nativo. */
+.top{height:auto;min-height:78px;flex-wrap:wrap;gap:12px}
+.periodwrap{flex:0 0 auto;margin-left:auto}
+.periodo input{width:220px;min-width:220px;max-width:none;font-size:16px}
+@media(max-width:700px){.top{min-height:64px}}
