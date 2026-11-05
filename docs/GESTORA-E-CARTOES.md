@@ -3,7 +3,7 @@
 ## Cartões e faturas
 
 Em **Lançamentos → Cartões**, cadastre o nome, o dia do fechamento e o vencimento.
-Na conta gestora, escolha se o cartão pertence à gestão ou a uma pessoa cadastrada.
+Cartões ficam disponíveis nas contas Solo e Casal. A Gestora usa diretamente quem pagou, sem cadastro de cartão.
 O mês da fatura é o mês do vencimento, não necessariamente o mês da compra:
 para fechamento dia 25 e vencimento dia 5, uma compra em 20/11 entra na fatura de
 dezembro; uma em 26/11 entra na de janeiro. Compras no próprio dia do fechamento
@@ -12,8 +12,7 @@ ajustadas ao último dia válido.
 
 Lançamentos e parcelas permitem selecionar cartão e ajustar o mês da fatura. Em
 parcelas, o ajuste inicial avança um mês por parcela, preservando os centavos do
-valor total. Compras de mercado da Gestora e a revisão do assistente também permitem escolher
-cartão e ajustar a fatura. Recorrências de despesas também aceitam cartão. Receitas recorrentes
+valor total. A revisão do assistente nas contas Solo e Casal também permite escolher cartão e ajustar a fatura. Recorrências de despesas também aceitam cartão. Receitas recorrentes
 usam o tipo Receita e uma categoria de receita; não são despesas fixas.
 
 A consulta mostra previstos, pagos, totais e relatório por categoria do cartão.
@@ -28,7 +27,7 @@ separadamente: a saída da gestora ocorre somente quando ela faz o repasse.
 
 Escolha **Gestora** no tipo da conta, em Ajustes ou no primeiro acesso. Solo e
 Casal continuam disponíveis e as contas antigas mantêm seus dados. Em
-**Orçamento → Gestora**, cadastre as pessoas e a contribuição mensal de cada uma.
+**Gestão da conta → Gestora**, cadastre as pessoas e a contribuição mensal de cada uma.
 O valor pode ser zero. Alterações na contribuição passam a valer a partir do mês
 selecionado, sem reescrever os valores dos meses anteriores.
 
@@ -36,26 +35,25 @@ selecionado, sem reescrever os valores dos meses anteriores.
 recebido e o pendente ficam separados por pessoa e mês de referência. Uma entrada
 realizada depois pode quitar a contribuição de um mês anterior; a data efetiva do
 recebimento continua no lançamento financeiro. Não há compensação automática com
-reembolsos. As contribuições previstas compõem a base de renda prevista da gestora.
+reembolsos. Uma contribuição recebida em 30/10 para novembro aparece nos lançamentos e relatórios de novembro, preservando 30/10 como data efetiva. A proteção de mês fechado considera a referência da contribuição. A categoria é **Contribuição**.
 
 ## Mercado e itens pessoais
 
-Cadastre primeiro os cartões. Depois informe descrição, data, total da nota e
-cartão utilizado, acrescentando cada item pessoal com descrição, pessoa e valor.
+Informe data, total da nota e **Quem pagou?**: o nome da conta (padrão) ou uma pessoa cadastrada. A descrição da compra é opcional e assume **Mercado**. A descrição dos itens também é opcional e assume **Item 1**, **Item 2**, etc. O status inicial é **Pago**. As despesas usam a categoria **Mercado**.
 A soma dos itens pessoais não pode ultrapassar a nota. A diferença é a parte comum
 da moradia. O resumo mensal soma os itens por pessoa e detalha cada item e compra.
 
 Exemplo: nota de **R$ 300**, itens pessoais de Ana **R$ 40** e de Bia **R$ 20**.
 A parte comum é **R$ 240**.
 
-| Cartão utilizado | Valores a receber pela gestora | Valor a enviar pela gestora |
+| Quem pagou? | Valores a receber pela gestora | Valor a enviar pela gestora |
 |---|---|---|
-| Cartão da gestão | Ana: R$ 40; Bia: R$ 20 | Nenhum repasse ao comprador |
-| Cartão de Ana | Bia: R$ 20 | Ana: R$ 260 (R$ 300 − R$ 40) |
+| Conta gestora | Ana: R$ 40; Bia: R$ 20 | Nenhum repasse ao comprador |
+| Ana | Bia: R$ 20 | Ana: R$ 260 (R$ 300 − R$ 40) |
 
-No cartão da gestão, a nota é uma única despesa da gestora (prevista ou paga), e
-os reembolsos são receitas quando recebidos. No cartão pessoal, a compra não cria
-outra despesa da gestora: os repasses efetivamente pagos ao titular são as saídas,
+Quando a conta paga, a nota é uma única despesa da gestora (prevista ou paga), e
+os reembolsos são receitas quando recebidos. Quando uma pessoa paga, a compra não cria
+outra despesa da gestora: os repasses efetivamente pagos à pessoa que pagou são as saídas,
 e os reembolsos das demais pessoas são as entradas. Nos dois exemplos, depois de
 todos os acertos, a saída líquida da gestora é R$ 240. Relatórios de caixa mostram
 as entradas e saídas brutas; o custo comum é exibido separadamente na gestão.
@@ -81,3 +79,5 @@ Cartões, pessoas, itens, contribuições e acertos fazem parte do mesmo backup 
 e da sincronização já configurada. Não é necessário alterar as tabelas Supabase.
 Atualize ambos os dispositivos para ter acesso à interface nova. Quando os dois
 forem alterados antes de sincronizar, a proteção contra conflitos continua ativa.
+
+Na Gestora, Divisão da renda, Orçamento semanal, Controle de limites e Reserva financeira não aparecem. O fechamento mensal continua disponível. Dados históricos de cartões e reservas permanecem preservados nos backups.

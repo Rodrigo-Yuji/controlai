@@ -1,3 +1,4 @@
+import {APP_SITE_URL} from './recovery.ts';
 export interface SyncConfig {url:string;key:string}
 export interface Session {access_token:string;refresh_token:string;expires_at:number;user:{id:string;email?:string}}
 export interface RemoteVault {revision:number;snapshot:unknown}
@@ -15,12 +16,14 @@ export class SyncError extends Error {code:string;constructor(message:string,cod
 export class SupabaseClient {
  readonly config:SyncConfig;private session:Session|null;private saveSession:(session:Session)=>Promise<void>;
  constructor(config:SyncConfig,session:Session|null,saveSession:(session:Session)=>Promise<void>){this.config=config;this.session=session;this.saveSession=saveSession;}
- private async request(path:string,body:unknown,token?:string):Promise<unknown>{
+ private async request(path:string,body:unknown,token?:string,method?:'GET'|'POST'|'PUT'):Promise<unknown>{
   const abort=new AbortController();const timer=setTimeout(()=>abort.abort(),15000);
   try {
-   const response=await fetch(this.config.url+path,{method:body===undefined?'GET':'POST',headers:{apikey:this.config.key,'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:abort.signal,credentials:'omit'});
+   const response=await fetch(this.config.url+path,{method:method??(body===undefined?'GET':'POST'),headers:{apikey:this.config.key,'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:abort.signal,credentials:'omit'});
    const data=await response.json().catch(()=>null);
    if(!response.ok){
+    if(response.status===429)throw new SyncError('Limite de envios ou tentativas atingido. Tente novamente mais tarde.','RATE_LIMIT');
+    if(data?.code==='weak_password')throw new SyncError('A senha não atende às regras do projeto. Use uma senha mais forte com pelo menos 8 caracteres.','PASSWORD');
     if(data?.code==='40001'||String(data?.message).includes('SYNC_CONFLICT'))throw new SyncError('Outro dispositivo alterou a cópia. Sincronize novamente.','CONFLICT');
     if(response.status===401)throw new SyncError('Entre novamente para continuar a sincronização.','AUTH');
     if(response.status===404||data?.code==='PGRST202'||data?.code==='42P01')throw new SyncError('Configure o banco com o arquivo supabase/setup.sql antes de sincronizar.','SETUP');
@@ -41,6 +44,19 @@ export class SupabaseClient {
  async signup(email:string,password:string){
   if(password.length<8)throw Error('Use uma senha com pelo menos 8 caracteres.');
   await this.request('/auth/v1/signup',{email,password});
+ }
+ async requestPasswordRecovery(email:string){
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))throw Error('Informe seu e-mail para receber o link de recuperação.');
+  await this.request('/auth/v1/recover?redirect_to='+encodeURIComponent(APP_SITE_URL),{email:email.trim()});
+ }
+ async recoveryUser(accessToken:string):Promise<{id:string;email?:string}>{
+  const user=await this.request('/auth/v1/user',undefined,accessToken) as {id?:string;email?:string};
+  if(!user?.id)throw new SyncError('Link inválido ou expirado. Solicite outro e-mail.','AUTH');
+  return {id:user.id,email:user.email};
+ }
+ async updatePassword(accessToken:string,password:string){
+  if(password.length<8)throw Error('Use uma senha com pelo menos 8 caracteres.');
+  await this.request('/auth/v1/user',{password},accessToken,'PUT');
  }
  private async token(){
   if(!this.session)throw new SyncError('Entre para sincronizar.','AUTH');

@@ -3,7 +3,7 @@ import { FileUp, Mic, MicOff } from 'lucide-react';
 import { nativeSpeech, SpeechInput } from './native-speech';
 import { db, type Categoria, type Conta, type Fechamento, type Lancamento } from './db';
 import { hoje, moeda } from './utils';
-import {invoiceMonth} from './finance';
+import {accountType,invoiceMonth} from './finance';
 import { commandDraft, detectColumns, draftError, fingerprint, MAX_ROWS, parseCsv, spreadsheetDrafts, toEntry, type Cell, type Column, type Columns, type Draft } from './assistant';
 
 import { detectPlanLayout, inferSheetMonth, monthlyPlanDrafts, type PlanResult } from './monthly-plan';
@@ -50,12 +50,14 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
   const fileRequest = useRef(0);
   const rows = sheets[sheetIndex]?.rows ?? [];
   const closed = fechamentos.map(item => item.mes);
-  const existing = useMemo(() => new Set(registros.map(fingerprint)), [registros]);
+  const managed=accountType(conta)==='gestora';
+  const existing = useMemo(() => new Set(registros.map(entry=>fingerprint(managed?{...entry,cartaoId:undefined}:entry))), [registros,managed]);
+  const entryFingerprint=(entry:Lancamento)=>fingerprint(managed?{...entry,cartaoId:undefined}:entry);
   const duplicates = new Set<number>();
   const seen = new Set(existing);
   drafts.forEach((draft, index) => {
     if (draftError(draft, categorias, [])) return;
-    const key = fingerprint(toEntry(draft, conta.id, categorias));
+    const key = entryFingerprint(toEntry(draft, conta.id, categorias));
     if (seen.has(key)) duplicates.add(index);
     if (draft.selecionada) seen.add(key);
   });
@@ -172,15 +174,17 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
         if (!freshAccount) throw new Error('Esta conta não existe mais. Selecione outra conta.');
         const freshCategories = await tx.categorias.where('contaId').equals(conta.id).toArray();
         const freshClosed = (await tx.fechamentos.where('contaId').equals(conta.id).toArray()).map(item => item.mes);
-        const keys = new Set((await tx.lancamentos.where('contaId').equals(conta.id).toArray()).map(fingerprint));
+        const freshFingerprint=(entry:Lancamento)=>fingerprint(accountType(freshAccount)==='gestora'?{...entry,cartaoId:undefined}:entry);
+        const keys = new Set((await tx.lancamentos.where('contaId').equals(conta.id).toArray()).map(freshFingerprint));
         const entries: Lancamento[] = [];
         let skipped = 0;
         for (const draft of drafts.filter(item => item.selecionada)) {
           const validation = draftError(draft, freshCategories, []);
           if (validation) throw new Error(`Linha ${draft.linha}: ${validation}`);
           const entry = toEntry(draft, conta.id, freshCategories);
+          if(accountType(freshAccount)==='gestora'){delete entry.cartaoId;delete entry.faturaMes;}
           if(entry.cartaoId){const card=freshAccount.cartoes?.find(c=>c.id===entry.cartaoId&&!c.arquivado);if(!card)throw Error(`Linha ${draft.linha}: selecione um cartão ativo desta conta.`);if(!entry.faturaMes)entry.faturaMes=invoiceMonth(entry.data,card);}
-          const key = fingerprint(entry);
+          const key = freshFingerprint(entry);
           if (skipDuplicates && keys.has(key)) { skipped++; continue; }
           const closureError = draftError(draft, freshCategories, freshClosed);
           if (closureError) throw new Error(`Linha ${draft.linha}: ${closureError}`);
@@ -258,7 +262,7 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
               <label>Tipo<select value={draft.tipo} onChange={event => {const tipo = event.target.value; updateDraft(index, {tipo, categoria:categorias.find(category => category.tipo === tipo)?.nome ?? ''});}}>{!['despesa','receita'].includes(draft.tipo) && <option value={draft.tipo}>Selecione o tipo</option>}<option value="despesa">Despesa</option><option value="receita">Receita</option></select></label>
               <label>Categoria<select value={draft.categoria} onChange={event => updateDraft(index, {categoria:event.target.value})}>{!available.some(category => category.nome === draft.categoria) && <option value={draft.categoria}>{draft.categoria ? `${draft.categoria} — selecione uma categoria válida` : 'Selecione uma categoria'}</option>}{available.map(category => <option key={category.id} value={category.nome}>{category.nome}</option>)}</select></label>
               <label>Status<select value={draft.status} onChange={event => updateDraft(index, {status:event.target.value})}>{!['confirmado','previsto'].includes(draft.status) && <option value={draft.status}>Selecione o status</option>}<option value="confirmado">{draft.tipo === 'receita' ? 'Recebido' : 'Pago'}</option><option value="previsto">Previsto</option></select></label>
-              {draft.tipo==='despesa'&&(conta.cartoes??[]).length>0&&<><label>Cartão do lançamento<select value={draft.cartaoId??''} onChange={event=>updateDraft(index,{cartaoId:event.target.value,faturaMes:''})}><option value="">Sem cartão</option>{(conta.cartoes??[]).filter(c=>!c.arquivado).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>{draft.cartaoId&&<label>Fatura do lançamento<input type="month" value={draft.faturaMes||invoiceMonth(draft.data,conta.cartoes?.find(c=>c.id===draft.cartaoId))} onChange={event=>updateDraft(index,{faturaMes:event.target.value})}/></label>}</>}
+              {accountType(conta)!=='gestora'&&draft.tipo==='despesa'&&(conta.cartoes??[]).length>0&&<><label>Cartão do lançamento<select value={draft.cartaoId??''} onChange={event=>updateDraft(index,{cartaoId:event.target.value,faturaMes:''})}><option value="">Sem cartão</option>{(conta.cartoes??[]).filter(c=>!c.arquivado).map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select></label>{draft.cartaoId&&<label>Fatura do lançamento<input type="month" value={draft.faturaMes||invoiceMonth(draft.data,conta.cartoes?.find(c=>c.id===draft.cartaoId))} onChange={event=>updateDraft(index,{faturaMes:event.target.value})}/></label>}</>}
               <label className="assistant-note">Observação (opcional)<textarea rows={2} value={draft.observacao} onChange={event => updateDraft(index, {observacao:event.target.value})}/></label>
             </div>
             {validation && <p className="error">{validation}</p>}

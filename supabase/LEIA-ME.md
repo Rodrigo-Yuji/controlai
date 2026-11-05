@@ -57,3 +57,7 @@ Sair do login pausa a sincronização e mantém os dados locais. Trocar projeto 
 login exige uma nova escolha explícita da origem, sem enviar automaticamente os
 dados do usuário anterior. A senha de login não é armazenada pelo ControlAI; a
 sessão fica nos metadados locais privados, fora dos backups financeiros.
+
+## Recuperar senha
+
+Em Ajustes, informe o e-mail e use **Esqueci minha senha**. O link abre o site público do ControlAI para definir e confirmar uma nova senha. Configure a Site URL e permita `https://rodrigo-yuji.github.io/controlai/` em Authentication → URL Configuration do Supabase. Links expirados permitem solicitar outro e-mail. A recuperação altera a senha do usuário existente, preservando os dados financeiros; não exclua nem recrie o usuário no painel. O APK pode usar a nova senha após a recuperação pelo navegador.

@@ -44,6 +44,7 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
   if(signup){await client.signup(email.trim(),password);setPassword('');setResult({kind:'choose',message:'Confira a confirmação no seu e-mail. Depois entre com sua senha.'});}
   else{const next=await client.login(email.trim(),password);setPassword('');setSession(next);}
  });}
+ async function recoverPassword(){await action(async()=>{if(!config)throw Error('Configure o projeto Supabase primeiro.');const client=new SupabaseClient(config,null,async()=>{});await client.requestPasswordRecovery(email.trim());setPassword('');setResult({kind:'choose',message:'Se houver um cadastro para esse e-mail, você receberá um link para definir uma nova senha. Abra o link no navegador; depois use a nova senha também no APK.'});});}
  async function choose(source:'local'|'cloud'){
   const text=source==='local'?'Usar os dados DESTE DISPOSITIVO como cópia da nuvem? Nos demais dispositivos, sincronize antes de continuar.':'Usar os dados DA NUVEM neste dispositivo? Os dados locais atuais serão substituídos.';
   if(!confirm(text+' Uma cópia de recuperação será mantida neste dispositivo.'))return;
@@ -67,7 +68,7 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
  {config&&<form className="fields sync-login" onSubmit={e=>{e.preventDefault();void authenticate();}}>
  <label>E-mail<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)}/></label>
  <label>Senha<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label>
- <div className="sync-actions"><button className="primary">Entrar para sincronizar</button><button type="button" className="secondary" onClick={()=>{void authenticate(true);}}>Criar login</button></div></form>}</>}
+ <div className="sync-actions"><button className="primary">Entrar para sincronizar</button><button type="button" className="secondary" onClick={()=>{void authenticate(true);}}>Criar login</button></div><button type="button" className="textbutton recovery-action" onClick={()=>{void recoverPassword();}}>Esqueci minha senha</button></form>}</>}
  {session&&<><p>Conectado como <strong>{session.user.email||email}</strong></p>
  <div className="sync-actions"><button type="button" className="primary" onClick={()=>{paused.current=false;void run.current();}}>Sincronizar agora</button>
  <button type="button" className="secondary" onClick={()=>{void action(async()=>{generation.current++;paused.current=true;await db.setLocalState('sync.session',null);setSession(null);setResult({kind:'choose',message:'Desconectado. Os dados locais foram mantidos.'});});}}>Sair do login</button></div>

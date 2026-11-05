@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "eslint .",
-    "test": "node src/finance-management.test.ts && node src/sync/engine.test.ts && node src/pay-cycle.test.ts && node src/budget.test.ts && node src/assistant.test.ts && node src/monthly-plan.test.ts && node src/storage/sqlite.test.ts",
+    "test": "node src/sync/recovery.test.ts && node src/finance-management.test.ts && node src/sync/engine.test.ts && node src/pay-cycle.test.ts && node src/budget.test.ts && node src/assistant.test.ts && node src/monthly-plan.test.ts && node src/storage/sqlite.test.ts",
     "build:native": "tsc -b && vite build --mode native",
     "android:sync": "npm run build:native && cap sync android",
     "android:open": "cap open android",
