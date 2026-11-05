@@ -69,3 +69,5 @@ html[data-theme="escuro"] .recordnote{color:#b5c3d9}
 html[data-theme="escuro"] .assistant-draft{border-color:#405373}html[data-theme="escuro"] .assistant-warning{color:#ffe2a0;background:#493611}
 @media(max-width:700px){.assistant-columns{grid-template-columns:1fr}.assistant-draft{padding:12px}.assistant-section>legend{font-size:17px}.assistant-review .primary{width:100%}}
 @media(min-width:701px){.nav{width:min(720px,calc(100% - 32px));max-width:720px}.nav button{min-width:0;flex:1}}
+
+.distribution-field{min-width:0}.distribution-preview{display:flex;flex-direction:column;gap:4px;margin-top:8px;overflow-wrap:anywhere}.distribution-preview small{color:#74829a;font-size:11px}.distribution-preview strong{font-size:clamp(14px,3.5vw,18px)}
