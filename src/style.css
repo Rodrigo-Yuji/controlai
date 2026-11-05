@@ -141,3 +141,6 @@ html .top.account-colored-header{background:var(--account-color);color:var(--acc
 .accountbar>.sync-notice{margin:0;flex:1;min-width:0}.accountbar>.iconbutton{flex-shrink:0}
 @media(min-width:701px){.app>main{padding-top:12px}.accountbar{min-height:32px;gap:8px;margin-bottom:6px}.accountbar>.iconbutton{min-width:32px;min-height:32px;margin:0;padding:6px}}
 @media(max-width:700px){.accountbar{flex-wrap:wrap}.accountbar>.sync-notice{order:3;flex-basis:100%}}
+
+.reserve-form{display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr));align-items:end}.reserve-form>label{min-width:0}.reserve-form>small,.reserve-form>button{grid-column:1/-1}.reserve-form>button{justify-self:start}
+@media(max-width:700px){.reserve-form{grid-template-columns:minmax(0,1fr)}.reserve-form>button{justify-self:stretch}}
