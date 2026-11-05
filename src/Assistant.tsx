@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileUp, Mic, MicOff } from 'lucide-react';
+import { nativeSpeech, SpeechInput } from './native-speech';
 import { db, type Categoria, type Conta, type Fechamento, type Lancamento } from './db';
 import { hoje, moeda } from './utils';
 import { commandDraft, detectColumns, draftError, fingerprint, MAX_ROWS, parseCsv, spreadsheetDrafts, toEntry, type Cell, type Column, type Columns, type Draft } from './assistant';
@@ -42,6 +43,8 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [listening, setListening] = useState(false);
   const speech = useRef<Speech | null>(null);
+  const voiceRequest = useRef(0);
+  const [microphoneBlocked, setMicrophoneBlocked] = useState(false);
   const busy = useRef(false);
   const fileRequest = useRef(0);
   const rows = sheets[sheetIndex]?.rows ?? [];
@@ -60,7 +63,7 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
   const Voice = speechConstructor();
 
   useEffect(() => () => {
-    fileRequest.current++;
+    fileRequest.current++; voiceRequest.current++;
     if (speech.current) { speech.current.onend = null; speech.current.onerror = null; speech.current.onresult = null; speech.current.abort(); }
   }, []);
 
@@ -110,8 +113,28 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
     try { setDrafts([commandDraft(command, categorias, hoje())]); }
     catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível interpretar.'); }
   }
-  function startVoice() {
-    if (!Voice || saving || loading) return;
+  async function startVoice() {
+    if (saving || loading || listening) return;
+    if (nativeSpeech) {
+      const request = ++voiceRequest.current;
+      setError(''); setMessage(''); setMicrophoneBlocked(false); setListening(true);
+      try {
+        const result = await SpeechInput.start();
+        if (request !== voiceRequest.current) return;
+        setCommand(result.text); setDrafts([]); setPlanReport(null);
+        setMessage('Texto reconhecido. Clique em Interpretar comando para revisar.');
+      } catch (reason) {
+        if (request !== voiceRequest.current) return;
+        const code = typeof reason === 'object' && reason !== null && 'code' in reason ? String(reason.code) : '';
+        if (code === 'PERMISSION_DENIED') {
+          setMicrophoneBlocked(true);
+          setError('Microfone bloqueado. Abra as permissões do ControlAI e permita o microfone durante o uso. Confira também se o acesso ao microfone está ativado nos controles de privacidade do celular.');
+        } else if (code === 'CANCELLED') setMessage('Reconhecimento encerrado sem adicionar lançamentos. Você pode tentar novamente ou digitar.');
+        else setError(code === 'UNAVAILABLE' ? 'Ative ou atualize o serviço de voz do Android (por exemplo, o app Google). Você também pode usar o ditado do teclado ou digitar o comando.' : 'Não foi possível reconhecer a fala. Confira a conexão e o serviço de voz ou digite o comando.');
+      } finally { if (request === voiceRequest.current) setListening(false); }
+      return;
+    }
+    if (!Voice) return;
     setError(''); setMessage('');
     if (speech.current) {
       speech.current.onresult = null; speech.current.onerror = null; speech.current.onend = null;
@@ -193,12 +216,13 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
       <h3>Comando por texto ou voz</h3>
       <p className="muted">Exemplo: “comprei almoço por 40 reais” ou “recebi salário de 2500 reais ontem”. Um lançamento por comando; sem data, usamos hoje. Valores por extenso simples também são aceitos.</p>
       <div className="fields"><label>Seu comando<textarea rows={3} value={command} disabled={saving || loading || listening} onChange={event => {setCommand(event.target.value); setDrafts([]);}} placeholder="Comprei almoço por 40 reais"/></label></div>
-      <p className="muted">O reconhecimento de voz depende do navegador, pode precisar de internet e pode enviar áudio ao serviço de voz dele. O ControlAI interpreta o texto localmente e não grava áudio.</p>
-      {!Voice && <p className="muted">Este navegador não oferece reconhecimento de voz. Use o campo de texto ou o ditado do teclado do celular.</p>}
-      {listening ? <button type="button" className="secondary" onClick={() => {speech.current?.abort(); setListening(false);}}><MicOff size={18}/>Cancelar gravação</button>
-        : <button type="button" className="secondary" disabled={!Voice || loading || saving} onClick={startVoice}><Mic size={18}/>Usar microfone</button>}
+      <p className="muted">{nativeSpeech ? 'O ditado abre o reconhecimento de voz do Android. Ele pode precisar de internet e enviar áudio ao serviço de voz configurado no celular.' : 'O reconhecimento de voz depende do navegador, pode precisar de internet e pode enviar áudio ao serviço de voz dele.'} O ControlAI interpreta o texto localmente e não armazena áudio.</p>
+      {!nativeSpeech && !Voice && <p className="muted">Este navegador não oferece reconhecimento de voz. Use o campo de texto ou o ditado do teclado do celular.</p>}
+      {listening ? nativeSpeech ? <p role="status">Conclua ou cancele o ditado na janela do Android.</p> : <button type="button" className="secondary" onClick={() => {speech.current?.abort(); setListening(false);}}><MicOff size={18}/>Cancelar gravação</button>
+        : <button type="button" className="secondary" disabled={(!nativeSpeech && !Voice) || loading || saving} onClick={startVoice}><Mic size={18}/>Usar microfone</button>}
       <button type="button" className="primary" disabled={!command.trim() || listening || loading || saving} onClick={reviewCommand}>Interpretar comando</button>
-      {listening && <p role="status">Ouvindo… diga uma receita ou despesa.</p>}
+      {microphoneBlocked && <button type="button" className="secondary" onClick={() => {SpeechInput.openSettings().catch(() => setError('Abra Configurações → Aplicativos → ControlAI → Permissões → Microfone.'));}}>Abrir permissões do aplicativo</button>}
+      {listening && !nativeSpeech && <p role="status">Ouvindo… diga uma receita ou despesa.</p>}
     </section>
     {error && <p className="error assistant-message" role="alert">{error}</p>}
     {message && <p className="success assistant-message" role="status">{message}</p>}

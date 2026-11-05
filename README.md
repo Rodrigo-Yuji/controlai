@@ -158,3 +158,20 @@ workers de PWA no pacote Android. A versão da interface é exibida em Ajustes.
 Também é possível conferir um APK com
 `python3 scripts/verify-android-bundle.py caminho/do/app.apk` logo após o build
 nativo (antes de substituir `dist` por um build web).
+
+### Voz no Android
+
+No APK, o botão de microfone usa o reconhecimento de voz nativo do Android e
+solicita `RECORD_AUDIO` durante o uso. O pedido é feito somente ao tocar no botão;
+a declaração da permissão não concede acesso automaticamente. Se o usuário negar,
+o assistente oferece um botão para abrir as permissões do ControlAI. O controle
+global de privacidade do microfone e as permissões do serviço de voz também podem
+bloquear o ditado.
+
+O reconhecedor solicita preferência por processamento offline, mas o serviço do
+Android pode ignorá-la, depender de modelos instalados ou usar internet. O áudio
+é tratado pelo serviço de voz configurado no aparelho; o ControlAI não o grava.
+O texto reconhecido sempre exige revisão e confirmação antes de virar lançamento.
+No navegador, continua sendo usada a API de voz disponível, com alternativa de
+texto. Testes de interface simulam o serviço nativo; a permissão e a captura real
+precisam ser conferidas no aparelho.
