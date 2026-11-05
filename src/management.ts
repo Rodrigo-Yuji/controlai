@@ -17,6 +17,7 @@ export function marketPaid(entries:Lancamento[],purchaseId:string,personId:strin
  return entries.filter(e=>e.status==='confirmado'&&e.gestao?.compraId===purchaseId&&e.gestao.pessoaId===personId&&e.gestao.tipo===(direction==='receber'?'reembolsoMercado':'repasseMercado')&&e.tipo===(direction==='receber'?'receita':'despesa')).reduce((s,e)=>s+e.valorCentavos,0);
 }
 export function validateManagement(account:Conta){
+ if(account.cor!==undefined&&(typeof account.cor!=='string'||!/^#[\da-f]{6}$/i.test(account.cor)))throw Error('Cor da conta inválida.');
  const ids=new Set<string>();
  for(const person of account.pessoas??[]){if(!person.id||ids.has(person.id)||!person.nome.trim())throw Error('Pessoa gestora inválida.');ids.add(person.id);for(const target of person.contribuicoes)if(!Number.isSafeInteger(target.valorCentavos)||target.valorCentavos<0)throw Error('Contribuição mensal inválida.');}
  const cards=new Set<string>();for(const card of account.cartoes??[]){if(!card.id||cards.has(card.id)||!card.nome.trim()||![card.fechamento,card.vencimento].every(n=>Number.isInteger(n)&&n>=1&&n<=31))throw Error('Cartão inválido.');if(card.pessoaId&&!ids.has(card.pessoaId))throw Error('Titular do cartão não encontrado.');cards.add(card.id);}
