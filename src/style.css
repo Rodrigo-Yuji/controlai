@@ -102,3 +102,13 @@ html[data-theme="escuro"] .assistant-section{color:var(--text)}
 html[data-theme="escuro"] .wizard-progress{color:#a9ccff}
 html[data-theme="escuro"] .recharts-pie-label-text{fill:#edf3ff}
 .brandicon{background:white;overflow:hidden;box-shadow:0 3px 12px #0b23401a}.brandicon img{display:block;width:100%;height:100%;object-fit:contain}
+/* Explicit paired colors avoid Android dark-mode defaults on native controls. */
+:root{--control-bg:#fff;--control-text:#19263a;--control-border:#dce3ee}
+html[data-theme="escuro"]{--control-bg:#22344e;--control-text:#edf3ff;--control-border:#58708f}
+.switch button,.filters button{background:var(--control-bg);color:var(--control-text);border-color:var(--control-border)}
+html[data-theme="escuro"] .filters button:not(.active),html[data-theme="escuro"] .switch button:not(.active){background:#22344e;color:#edf3ff;-webkit-text-fill-color:#edf3ff;border-color:#58708f}
+html[data-theme="escuro"] .filters button.active,html[data-theme="escuro"] .switch button.active{background:#294970;color:#d6e8ff;-webkit-text-fill-color:#d6e8ff}
+html[data-theme="escuro"] .searchbox{background:#202f47;border-color:#58708f;color:#c6d7ef}
+html[data-theme="escuro"] .searchbox input{color:#edf3ff;-webkit-text-fill-color:#edf3ff}
+html[data-theme="escuro"] .searchbox input::placeholder{color:#bdcce0;-webkit-text-fill-color:#bdcce0;opacity:1}
+html[data-theme="escuro"] .nav button.selected{background:#294970;color:#d6e8ff}
