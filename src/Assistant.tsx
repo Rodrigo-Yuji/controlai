@@ -194,8 +194,9 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
 
   return <div className="assistant">
     <p className="muted">Importe uma planilha ou descreva um lançamento. A interpretação usa regras locais, sem IA paga. Revise os dados antes de confirmar na conta <strong>{conta.nome}</strong>.</p>
-    <fieldset disabled={loading || saving || listening} className="assistant-section panel">
-      <legend>Importar planilha</legend>
+    <section className="assistant-section panel" aria-labelledby="assistant-import-title">
+      <h3 id="assistant-import-title">Importar planilha</h3>
+      <fieldset disabled={loading || saving || listening} className="assistant-import-fields">
       <p className="muted">CSV ou Excel .xlsx, até 5 MB e {MAX_ROWS} lançamentos por aba. Aceita tabelas com cabeçalho na primeira linha e planos mensais com blocos de despesas e receitas. Os arquivos são lidos neste dispositivo.</p>
       <label className="assistant-file"><FileUp size={20}/>Selecionar planilha<input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={readFile}/></label>
       {loading && <p role="status">Lendo planilha…</p>}
@@ -211,16 +212,19 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
         </>}
         <button className="primary" type="button" onClick={reviewSheet}>Revisar planilha</button>
       </div>}
-    </fieldset>
+      </fieldset>
+    </section>
     <section className="panel">
       <h3>Comando por texto ou voz</h3>
       <p className="muted">Exemplo: “comprei almoço por 40 reais” ou “recebi salário de 2500 reais ontem”. Um lançamento por comando; sem data, usamos hoje. Valores por extenso simples também são aceitos.</p>
       <div className="fields"><label>Seu comando<textarea rows={3} value={command} disabled={saving || loading || listening} onChange={event => {setCommand(event.target.value); setDrafts([]);}} placeholder="Comprei almoço por 40 reais"/></label></div>
       <p className="muted">{nativeSpeech ? 'O ditado abre o reconhecimento de voz do Android. Ele pode precisar de internet e enviar áudio ao serviço de voz configurado no celular.' : 'O reconhecimento de voz depende do navegador, pode precisar de internet e pode enviar áudio ao serviço de voz dele.'} O ControlAI interpreta o texto localmente e não armazena áudio.</p>
       {!nativeSpeech && !Voice && <p className="muted">Este navegador não oferece reconhecimento de voz. Use o campo de texto ou o ditado do teclado do celular.</p>}
+      <div className="assistant-actions">
       {listening ? nativeSpeech ? <p role="status">Conclua ou cancele o ditado na janela do Android.</p> : <button type="button" className="secondary" onClick={() => {speech.current?.abort(); setListening(false);}}><MicOff size={18}/>Cancelar gravação</button>
         : <button type="button" className="secondary" disabled={(!nativeSpeech && !Voice) || loading || saving} onClick={startVoice}><Mic size={18}/>Usar microfone</button>}
       <button type="button" className="primary" disabled={!command.trim() || listening || loading || saving} onClick={reviewCommand}>Interpretar comando</button>
+      </div>
       {microphoneBlocked && <button type="button" className="secondary" onClick={() => {SpeechInput.openSettings().catch(() => setError('Abra Configurações → Aplicativos → ControlAI → Permissões → Microfone.'));}}>Abrir permissões do aplicativo</button>}
       {listening && !nativeSpeech && <p role="status">Ouvindo… diga uma receita ou despesa.</p>}
     </section>

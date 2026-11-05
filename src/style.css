@@ -59,7 +59,7 @@ html{scroll-padding-bottom:110px}body{overflow-x:hidden}.app{width:100%;overflow
 html[data-theme="escuro"] .recordnote{color:#b5c3d9}
 @media(max-width:700px){.fields textarea{font-size:16px}.recordnote{order:1;flex:0 0 100%;margin:0;padding-bottom:4px}}
 
-.assistant-section{min-width:0}.assistant-section>legend{font-size:19px;font-weight:700;padding:0 6px}
+.assistant-section{min-width:0}.assistant-import-fields{min-width:0;border:0;padding:0;margin:0}
 .assistant-file{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-weight:600}.assistant-file input{max-width:100%;min-width:0;font-size:14px}
 .assistant-mapping{margin-top:20px}.assistant-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .assistant-columns label{min-width:0}.assistant-columns select{max-width:100%}.assistant-note{grid-column:1/-1}
@@ -67,7 +67,7 @@ html[data-theme="escuro"] .recordnote{color:#b5c3d9}
 .assistant-draft{min-width:0;border:1px solid #dce3ee;border-radius:12px;margin:18px 0;padding:16px}.assistant-draft>legend{padding:0 6px;font-weight:600}
 .assistant-deselected{opacity:.65}.assistant-warning{color:#8c5900;background:#fff3d5;border-radius:8px;padding:10px;font-size:13px}.assistant-message{padding:12px;overflow-wrap:anywhere}
 html[data-theme="escuro"] .assistant-draft{border-color:#405373}html[data-theme="escuro"] .assistant-warning{color:#ffe2a0;background:#493611}
-@media(max-width:700px){.assistant-columns{grid-template-columns:1fr}.assistant-draft{padding:12px}.assistant-section>legend{font-size:17px}.assistant-review .primary{width:100%}}
+@media(max-width:700px){.assistant-columns{grid-template-columns:1fr}.assistant-draft{padding:12px}.assistant-review .primary{width:100%}}
 @media(min-width:701px){.nav{width:min(720px,calc(100% - 32px));max-width:720px}.nav button{min-width:0;flex:1}}
 
 .distribution-field{min-width:0}.distribution-preview{display:flex;flex-direction:column;gap:4px;margin-top:8px;overflow-wrap:anywhere}.distribution-preview small{color:#74829a;font-size:11px}.distribution-preview strong{font-size:clamp(14px,3.5vw,18px)}
@@ -112,3 +112,13 @@ html[data-theme="escuro"] .searchbox{background:#202f47;border-color:#58708f;col
 html[data-theme="escuro"] .searchbox input{color:#edf3ff;-webkit-text-fill-color:#edf3ff}
 html[data-theme="escuro"] .searchbox input::placeholder{color:#bdcce0;-webkit-text-fill-color:#bdcce0;opacity:1}
 html[data-theme="escuro"] .nav button.selected{background:#294970;color:#d6e8ff}
+
+/* Local spacing corrections: keep shared field and panel sizes unchanged. */
+.assistant-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:8px;width:100%;max-width:390px;margin-top:12px}
+.assistant-actions button{margin:0;min-height:44px;min-width:0;padding:10px 8px;line-height:1.35;text-align:center}
+.assistant-actions button svg{flex-shrink:0}
+.assistant-actions>p{margin:0;align-self:center}
+.account-create-form{margin-top:16px}
+.second-salary{display:flex;flex-direction:column;gap:14px}
+.second-salary h4{margin:0}
+.assistant-import-fields>p:first-child{margin-top:0}
