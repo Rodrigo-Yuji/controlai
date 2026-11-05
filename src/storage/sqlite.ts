@@ -1,3 +1,4 @@
+import {readTables,snapshotKey,validateSnapshot,writeTables} from '../sync/snapshot.ts';
 import { NUMERIC_TABLES, TABLE_NAMES, type Collection, type Database, type Key, type LegacySnapshot, type Records, type StorageTable, type TableName, type TableRef, type Tables } from './types.ts';
 import { normalizeLegacy } from './migration.ts';
 
@@ -199,6 +200,31 @@ export function createSqliteDatabase(open: () => Promise<SqlDriver>, legacy: () 
   const tables = makeTables(access);
   return {
     ...tables, kind:'sqlite', tables:Object.values(tables), initialize,
+    async snapshot(){
+      await initialize();
+      return enqueue(()=>readTables(makeTables((_name,_write,work)=>work(new Session(driver)))));
+    },
+    async getLocalState(key){
+      await initialize();return enqueue(async()=>{
+        const rows=await driver.all('SELECT value FROM storage_meta WHERE key = ?',[`sync:${key}`]);
+        return rows.length?JSON.parse(String(rows[0].value)):undefined;
+      });
+    },
+    async setLocalState(key,value){
+      await initialize();await enqueue(()=>driver.run('INSERT OR REPLACE INTO storage_meta (key,value) VALUES (?,?)',[`sync:${key}`,JSON.stringify(value)]));
+    },
+    async applySnapshot(expected,next,stateKey,state){
+      validateSnapshot(next);await initialize();
+      return enqueue(async()=>{
+        const changed=await atomic(TABLE_NAMES,async transaction=>{
+          if(snapshotKey(await readTables(transaction))!==expected)return false;
+          await writeTables(transaction,next);
+          await driver.run('INSERT OR REPLACE INTO storage_meta (key,value) VALUES (?,?)',[`sync:${stateKey}`,JSON.stringify(state)]);
+          return true;
+        });
+        if(changed)listeners.forEach(listener=>listener());return changed;
+      });
+    },
     async transaction(refs: readonly TableRef[], work) {
       await initialize();
       return enqueue(async () => {

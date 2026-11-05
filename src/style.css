@@ -122,3 +122,5 @@ html[data-theme="escuro"] .nav button.selected{background:#294970;color:#d6e8ff}
 .second-salary{display:flex;flex-direction:column;gap:14px}
 .second-salary h4{margin:0}
 .assistant-import-fields>p:first-child{margin-top:0}
+.sync-fields{border:0;padding:0;margin:0;min-width:0}.sync-config,.sync-login{margin-top:16px}.sync-panel input{max-width:100%}.sync-actions{display:flex;gap:8px;flex-wrap:wrap}.sync-actions button{margin-right:0}.sync-choice{margin-top:16px}.sync-panel details{overflow-wrap:anywhere}.sync-panel summary{cursor:pointer}.sync-panel .error{overflow-wrap:anywhere}
+.sync-notice{display:block;max-width:100%;border:0;background:transparent;color:#2459e0;font:inherit;font-size:12px;text-align:left;padding:0;margin:0 0 14px;overflow-wrap:anywhere}html[data-theme="escuro"] .sync-notice{color:#a9ccff}

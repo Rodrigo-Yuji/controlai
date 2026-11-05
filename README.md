@@ -72,7 +72,7 @@ O APK de teste será criado em `android/app/build/outputs/apk/debug/app-debug.ap
 3. No Android, use **Ajustes → Importar backup**, selecione o JSON e informe a senha, quando houver. A restauração substitui os dados daquela instalação após confirmação, dentro de uma transação SQLite.
 4. Confira contas, saldos, parcelas, observações e fechamentos antes de deixar de usar a versão anterior.
 
-O aplicativo nativo não consegue ler automaticamente o IndexedDB do Chrome ou do site no GitHub Pages, pois são origens distintas. A transferência entre eles é feita por backup, sem sincronização automática.
+O aplicativo nativo não consegue ler automaticamente o IndexedDB do Chrome ou do site no GitHub Pages, pois são origens distintas. A transferência pode ser feita por backup ou pela sincronização Supabase opcional em Ajustes.
 
 Se uma instalação Capacitor anterior já tiver IndexedDB na **mesma WebView**, a primeira abertura migra os registros para o SQLite vazio em uma única transação. A origem não é apagada. O processo registra sua conclusão e não repete a importação; se houver falha, reverte a cópia e mantém a origem. Um SQLite que já contenha dados não é sobrescrito/mesclado automaticamente. Uma cópia bruta da migração fica em `storage_meta`, inclusive tabelas históricas sem correspondência na interface atual.
 
@@ -175,3 +175,13 @@ O texto reconhecido sempre exige revisão e confirmação antes de virar lançam
 No navegador, continua sendo usada a API de voz disponível, com alternativa de
 texto. Testes de interface simulam o serviço nativo; a permissão e a captura real
 precisam ser conferidas no aparelho.
+
+### Celular e computador com os mesmos dados
+
+A integração Supabase é opcional e usa o mesmo login nos dois dispositivos. Veja
+[supabase/LEIA-ME.md](supabase/LEIA-ME.md) para ativar as tabelas, confirmar o e-mail
+e conectar primeiro a cópia do APK e depois a do computador. A configuração
+pública do projeto está preenchida no app; a chave não concede acesso aos dados
+sem autenticação. O SQL e as regras RLS precisam ser aplicados no projeto antes
+do primeiro uso. A interface mantém os dados locais offline e exige uma escolha
+explícita quando existem cópias divergentes, sem mesclar IDs numéricos por engano.

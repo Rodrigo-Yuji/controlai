@@ -43,6 +43,10 @@ export interface Database extends Tables {
   readonly kind: 'sqlite' | 'indexeddb';
   readonly tables: TableRef[];
   initialize(): Promise<void>;
+  snapshot(): Promise<import('../sync/snapshot.ts').Snapshot>;
+  getLocalState(key:string): Promise<unknown>;
+  setLocalState(key:string,value:unknown): Promise<void>;
+  applySnapshot(expected:string,next:import('../sync/snapshot.ts').Snapshot,stateKey:string,state:unknown):Promise<boolean>;
   transaction<T>(tables: readonly TableRef[], work: (transaction: Tables) => Promise<T>): Promise<T>;
   subscribe<T>(query: () => Promise<T>, observer: Observer<T>): () => void;
 }

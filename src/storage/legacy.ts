@@ -30,5 +30,6 @@ export class LegacyDatabase extends Dexie {
       await tx.table('contas').put({id:'principal',nome:'Minha conta',conjunta:false,padrao:true});
     });
     this.version(5).stores({fechamentos:'id, contaId, mes'});
+    this.version(6).stores({localstate:'key'});
   }
 }

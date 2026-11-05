@@ -1,3 +1,4 @@
+import {readTables,snapshotKey,validateSnapshot,writeTables} from '../sync/snapshot';
 import Dexie, { liveQuery, type Collection as DexieCollection, type Table, type UpdateSpec } from 'dexie';
 import { LegacyDatabase } from './legacy';
 import { TABLE_NAMES, type Collection, type Database, type LegacySnapshot, type StorageTable, type Tables } from './types';
@@ -27,6 +28,16 @@ export function createWebDatabase(): Database {
     ...tables, kind:'indexeddb', tables:Object.values(tables),
     initialize: async () => { await source.open(); },
     transaction: (refs, work) => source.transaction('rw', refs.map(ref => source.table(ref.name)), () => work(tables)),
+    snapshot:()=>source.transaction('r',TABLE_NAMES.map(name=>source.table(name)),()=>readTables(tables)),
+    getLocalState:async key=>(await source.table('localstate').get(key))?.value,
+    setLocalState:async(key,value)=>{await source.table('localstate').put({key,value});},
+    applySnapshot:async(expected,next,stateKey,state)=>{
+      validateSnapshot(next);
+      return source.transaction('rw',[...TABLE_NAMES.map(name=>source.table(name)),source.table('localstate')],async()=>{
+        if(snapshotKey(await readTables(tables))!==expected)return false;
+        await writeTables(tables,next);await source.table('localstate').put({key:stateKey,value:state});return true;
+      });
+    },
     subscribe(query, observer) {
       const subscription = liveQuery(query).subscribe(observer);
       return () => subscription.unsubscribe();
