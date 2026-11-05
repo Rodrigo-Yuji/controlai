@@ -81,3 +81,9 @@ Atualize ambos os dispositivos para ter acesso à interface nova. Quando os dois
 forem alterados antes de sincronizar, a proteção contra conflitos continua ativa.
 
 Na Gestora, Divisão da renda, Orçamento semanal, Controle de limites e Reserva financeira não aparecem. O fechamento mensal continua disponível. Dados históricos de cartões e reservas permanecem preservados nos backups.
+
+## Organização das telas (1.8)
+
+No computador, o cabeçalho com o mês permanece visível durante a rolagem. Na Gestora, as contribuições e o histórico de entradas/repasses ficam no primeiro bloco; Mercado e acertos vem em seguida, depois Outras entradas de pessoas e Fechamento mensal. Use **Adicionar pessoa** para abrir os campos; **Editar pessoa** abre a mesma janela com os valores atuais.
+
+Em Solo e Casal, o orçamento segue: Orçamento semanal, Controle de limites, Reserva financeira, Fechamento mensal e Divisão da renda. Nos três tipos de conta, editar uma categoria abre uma janela no ponto atual da página, com opções de salvar e cancelar.
