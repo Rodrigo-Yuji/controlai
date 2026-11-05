@@ -113,3 +113,19 @@ nos planos mensais, preservando compras iguais em linhas diferentes. Confira a
 revisão ao importar versões reorganizadas da planilha ou dados já cadastrados
 manualmente. Nada é gravado antes de **Confirmar lançamentos**, e os meses
 fechados continuam protegidos. O processamento do arquivo ocorre localmente.
+
+### Fixos automáticos no orçamento
+
+O percentual de Fixos é somente leitura: soma as despesas recorrentes (permanentes
+ou repetidas) e parcelas do mês selecionado, previstas e pagas, e divide pela base
+de renda escolhida. Uma recorrência já lançada não recebe outra previsão no mesmo
+mês. O total em reais usa os centavos originais; somente o percentual é arredondado
+para duas casas decimais. O cálculo é atualizado por conta, mês e base de renda,
+sem depender do percentual fixo salvo anteriormente. Variáveis e Reserva continuam
+editáveis e aceitam até duas casas decimais, mantendo o total de 100%.
+
+Sem renda, o total em reais permanece visível e o percentual aparece vazio. Se os
+compromissos excedem a renda, o percentual pode superar 100% e o orçamento mostra
+um aviso. Pagamentos recorrentes e parcelas são acompanhados como gastos fixos;
+as demais despesas entram no acompanhamento de gastos variáveis. Isso não altera
+os lançamentos, suas categorias ou seu histórico.
