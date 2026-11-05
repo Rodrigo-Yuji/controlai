@@ -129,3 +129,24 @@ compromissos excedem a renda, o percentual pode superar 100% e o orçamento most
 um aviso. Pagamentos recorrentes e parcelas são acompanhados como gastos fixos;
 as demais despesas entram no acompanhamento de gastos variáveis. Isso não altera
 os lançamentos, suas categorias ou seu histórico.
+
+### Ciclo semanal entre pagamentos
+
+O orçamento semanal da aba selecionada começa no quinto dia útil desse mês e
+termina um dia antes do quinto dia útil do mês seguinte. A contagem salarial
+inclui sábados e exclui domingos e feriados nacionais fixos; não inclui feriados
+estaduais, municipais ou pontos facultativos. Essa regra também aparece na tela.
+Cada semana tem até sete dias a partir do pagamento, incluindo os gastos pagos
+no mês seguinte que ainda pertencem ao ciclo. Previstas, receitas, recorrentes e
+parcelas não entram nos gastos variáveis semanais. O limite é dividido igualmente
+pelas semanas, distribuindo o resto dos centavos sem alterar o total.
+
+O total da distribuição indica o percentual que falta (ou excede) para chegar a
+100%, com vírgula decimal. Quantidades de parcelas e de repetições mensais podem
+ficar vazias durante a edição e são validadas antes de gerar lançamentos.
+
+A identidade visual utiliza uma versão adaptada do símbolo enviado pelo usuário
+(carteira azul-marinho, barras e seta verdes), sem o texto no ícone pequeno. Os
+recursos são compartilhados pelo cabeçalho, ícone PWA/favicon e variantes de ícone
+e abertura do Android. O modo noturno define fundos e cores de texto específicos
+para cartões, filtros, estados, campos e gráficos.
