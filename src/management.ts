@@ -1,3 +1,4 @@
+import {validateCoupleBudget} from './couple-budget.ts';
 import type {CompraMercado,Conta,Lancamento,PessoaGestora} from './db.ts';
 export function contributionTarget(person:PessoaGestora,month:string){
  if(month<person.inicioMes||(person.fimMes&&month>person.fimMes))return 0;
@@ -17,6 +18,7 @@ export function marketPaid(entries:Lancamento[],purchaseId:string,personId:strin
  return entries.filter(e=>e.status==='confirmado'&&e.gestao?.compraId===purchaseId&&e.gestao.pessoaId===personId&&e.gestao.tipo===(direction==='receber'?'reembolsoMercado':'repasseMercado')&&e.tipo===(direction==='receber'?'receita':'despesa')).reduce((s,e)=>s+e.valorCentavos,0);
 }
 export function validateManagement(account:Conta){
+ validateCoupleBudget(account);
  if(account.cor!==undefined&&(typeof account.cor!=='string'||!/^#[\da-f]{6}$/i.test(account.cor)))throw Error('Cor da conta inválida.');
  const ids=new Set<string>();
  for(const person of account.pessoas??[]){if(!person.id||ids.has(person.id)||!person.nome.trim())throw Error('Pessoa gestora inválida.');ids.add(person.id);for(const target of person.contribuicoes)if(!Number.isSafeInteger(target.valorCentavos)||target.valorCentavos<0)throw Error('Contribuição mensal inválida.');}
