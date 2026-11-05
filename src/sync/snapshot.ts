@@ -1,3 +1,4 @@
+import {validateFinancialReferences,validateManagement} from '../management.ts';
 import {TABLE_NAMES,NUMERIC_TABLES, type Records, type TableName, type Tables} from '../storage/types.ts';
 export type Snapshot = {[N in TableName]:Records[N][]};
 export async function readTables(tables:Tables):Promise<Snapshot> {
@@ -24,7 +25,7 @@ export function validateSnapshot(value:unknown):Snapshot {
       if(typeof row.id==='number'&&(!Number.isSafeInteger(row.id)||row.id<=0))throw Error(`Identificador inválido em ${name}.`);
       if(NUMERIC_TABLES.includes(name)&&typeof row.id!=='number')throw Error(`Identificador numérico obrigatório em ${name}.`);
       const key=String(row.id);if(ids.has(key))throw Error(`Identificador repetido em ${name}.`);ids.add(key);
-      if(name==='contas')accounts.add(key);
+      if(name==='contas'){validateManagement(row as Records['contas']);accounts.add(key);}
     }
   }
   for(const name of TABLE_NAMES)for(const row of snapshot[name]){
@@ -34,6 +35,7 @@ export function validateSnapshot(value:unknown):Snapshot {
       if(amount!==undefined&&(!Number.isSafeInteger(amount)||(['liquido','refeicao','beneficio','adicional'].includes(key)&&Number(amount)<0)))throw Error('Valor monetário inválido na cópia remota.');
     }
   }
+  validateFinancialReferences(snapshot.contas,snapshot.lancamentos,snapshot.recorrencias);
   if(!snapshot.contas.length)throw Error('A cópia precisa conter ao menos uma conta.');
   // Keep synchronization requests bounded; attachments are not included.
   if(new TextEncoder().encode(JSON.stringify(snapshot)).byteLength>8*1024*1024)throw Error('Cópia maior que o limite de 8 MB.');

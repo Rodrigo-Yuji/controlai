@@ -12,6 +12,7 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
  const [loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [result,setResult]=useState<SyncResult>({kind:'choose',message:'Conecte a mesma conta de login no celular e no computador.'});
  useEffect(()=>{onStatus(!session?'':busy?'Sincronizando…':error?'Sincronização pendente · abrir Ajustes':result.kind==='conflict'?'Conflito de sincronização · abrir Ajustes':result.kind==='choose'?'Conectar dados · abrir Ajustes':result.kind==='retry'?'Sincronização pendente':'Sincronizado');},[onStatus,session,busy,error,result.kind]);
+ useEffect(()=>{const refresh=(event:Event)=>{const done=(event as CustomEvent<{done:()=>void}>).detail.done;run.current().finally(done);};window.addEventListener('controlai-refresh',refresh);return()=>window.removeEventListener('controlai-refresh',refresh);},[]);
  const engine=useRef<SyncEngine|null>(null),working=useRef(false),paused=useRef(true),generation=useRef(0);
  useEffect(()=>{let active=true;Promise.all([db.getLocalState('sync.config'),db.getLocalState('sync.session')]).then(([c,s])=>{
   if(!active)return;const settings=validateConfig((c as SyncConfig)||defaultSyncConfig);setConfig(settings);setUrl(settings.url);setKey(settings.key);if(s&&(s as {url:string}).url===settings.url)setSession((s as {session:Session}).session);setLoaded(true);
@@ -70,7 +71,7 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
  {session&&<><p>Conectado como <strong>{session.user.email||email}</strong></p>
  <div className="sync-actions"><button type="button" className="primary" onClick={()=>{paused.current=false;void run.current();}}>Sincronizar agora</button>
  <button type="button" className="secondary" onClick={()=>{void action(async()=>{generation.current++;paused.current=true;await db.setLocalState('sync.session',null);setSession(null);setResult({kind:'choose',message:'Desconectado. Os dados locais foram mantidos.'});});}}>Sair do login</button></div>
- {(result.kind==='choose'||result.kind==='conflict')&&<div className="sync-choice"><p className="muted">Na primeira conexão, envie os dados do APK. Depois, no computador, escolha usar a cópia da nuvem. Se houver alterações nos dois lados, exporte os backups antes de escolher; a escolha mantém uma cópia completa e não mescla os lançamentos.</p>
+ {(result.kind==='choose'||result.kind==='conflict'||Boolean(error))&&<div className="sync-choice"><p className="muted">Na primeira conexão, envie os dados do APK. Depois, no computador, escolha usar a cópia da nuvem. Se houver alterações nos dois lados, exporte os backups antes de escolher; a escolha mantém uma cópia completa e não mescla os lançamentos.</p>
  <div className="sync-actions"><button type="button" className="secondary" onClick={()=>{void choose('local');}}>Usar dados deste dispositivo</button><button type="button" className="secondary" onClick={()=>{void choose('cloud');}}>Usar dados da nuvem</button></div></div>}
  <div className="sync-actions"><button type="button" className="textbutton" onClick={()=>{void downloadRecovery('local');}}>Backup local de recuperação</button><button type="button" className="textbutton" onClick={()=>{void downloadRecovery('cloud');}}>Backup remoto de recuperação</button></div></>}
  </fieldset>

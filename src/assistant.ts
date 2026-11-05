@@ -13,6 +13,8 @@ export interface Draft {
   status: string;
   observacao: string;
   origemImportacao?: string;
+  cartaoId?: string;
+  faturaMes?: string;
   selecionada: boolean;
   linha: number;
 }
@@ -157,6 +159,7 @@ export function draftError(draft: Draft, categories: Categoria[], closedMonths: 
   if (cents === null || cents <= 0) return 'Informe um valor positivo com até duas casas decimais.';
   if (!validDate(draft.data)) return 'Informe uma data válida.';
   if (closedMonths.includes(draft.data.slice(0, 7))) return 'Mês fechado. Reabra em Orçamento ou desmarque esta linha.';
+  if(draft.cartaoId&&draft.faturaMes&&!validDate(`${draft.faturaMes}-01`))return 'Informe um mês de fatura válido.';
   if (!['receita', 'despesa'].includes(draft.tipo)) return 'Selecione receita ou despesa.';
   if (!['previsto', 'confirmado'].includes(draft.status)) return 'Selecione o status.';
   if (!categories.some(category => category.tipo === draft.tipo && category.nome === draft.categoria)) return 'Selecione uma categoria desta conta e deste tipo.';
@@ -168,11 +171,13 @@ export function toEntry(draft: Draft, accountId: string, categories: Categoria[]
   const category = categories.find(category => category.tipo === draft.tipo && category.nome === draft.categoria)!;
   return {contaId: accountId, descricao: draft.descricao.trim(), valorCentavos: money(draft.valor)!, data: draft.data, tipo: draft.tipo as Tipo,
     categoria: category.nome, natureza: category.natureza as Natureza, status: draft.status as Status, observacao: draft.observacao.trim(),
-    ...(draft.origemImportacao ? {origemImportacao:draft.origemImportacao} : {})};
+    ...(draft.origemImportacao ? {origemImportacao:draft.origemImportacao} : {}),
+    ...(draft.tipo==='despesa'&&draft.cartaoId?{cartaoId:draft.cartaoId,...(draft.faturaMes?{faturaMes:draft.faturaMes}:{})}:{})};
 }
 export function fingerprint(entry: Lancamento): string {
   const fields: (string | number)[] = [entry.data, entry.tipo, entry.valorCentavos, normalize(entry.descricao), normalize(entry.categoria)];
   if (entry.origemImportacao) fields.push(entry.origemImportacao);
+  if(entry.cartaoId)fields.push('cartao',entry.cartaoId);
   return JSON.stringify(fields);
 }
 

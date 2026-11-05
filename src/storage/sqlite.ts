@@ -1,3 +1,4 @@
+import {validateManagement} from '../management.ts';
 import {readTables,snapshotKey,validateSnapshot,writeTables} from '../sync/snapshot.ts';
 import { NUMERIC_TABLES, TABLE_NAMES, type Collection, type Database, type Key, type LegacySnapshot, type Records, type StorageTable, type TableName, type TableRef, type Tables } from './types.ts';
 import { normalizeLegacy } from './migration.ts';
@@ -46,6 +47,7 @@ function makeTable<N extends TableName>(name: N, access: Access): StorageTable<R
     return rows[0] ? decode(rows[0]) : undefined;
   };
   const insert = async (session: Session, value: Records[N], replace: boolean): Promise<Key<N>> => {
+    if(name==='contas')validateManagement(value as Records['contas']);
     const row = value as Document;
     if (!numeric && (typeof row.id !== 'string' || !row.id)) throw new Error(`ID inválido em ${name}.`);
     if (numeric && row.id !== undefined && (typeof row.id !== 'number' || !Number.isSafeInteger(row.id))) throw new Error(`ID inválido em ${name}.`);

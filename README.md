@@ -185,3 +185,12 @@ pública do projeto está preenchida no app; a chave não concede acesso aos dad
 sem autenticação. O SQL e as regras RLS precisam ser aplicados no projeto antes
 do primeiro uso. A interface mantém os dados locais offline e exige uma escolha
 explícita quando existem cópias divergentes, sem mesclar IDs numéricos por engano.
+
+### Cartões, recorrências e conta gestora
+
+A versão 1.6 inclui busca por observação e filtro de previstos, receitas
+recorrentes, cartões com fechamento/vencimento e ajuste de fatura, além da conta
+Gestora com pessoas, contribuições mensais e divisão dos itens pessoais do mercado.
+Veja [o guia com exemplos e regras de acerto](docs/GESTORA-E-CARTOES.md).
+Esses dados usam os documentos existentes da conta e dos lançamentos, preservando
+SQLite, backups e sincronização, sem criar novas tabelas no Supabase.

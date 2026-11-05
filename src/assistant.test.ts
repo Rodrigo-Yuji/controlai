@@ -87,3 +87,7 @@ test('duplicate fingerprints normalize accents/case and include amounts and acco
   assert.equal(fingerprint(entry), fingerprint({...entry,descricao:' almoco '}));
   assert.notEqual(fingerprint(entry), fingerprint({...entry,valorCentavos:4001}));
 });
+
+test('assistant card selection persists and identical purchases on different cards are distinct',()=>{
+ const draft={...commandDraft('comprei almoço por 40 reais',categories,'2026-11-05'),cartaoId:'C',faturaMes:'2026-12'};const value=toEntry(draft,'A',categories);assert.equal(value.cartaoId,'C');assert.equal(value.faturaMes,'2026-12');assert.notEqual(fingerprint(value),fingerprint({...value,cartaoId:'other'}));assert.equal(fingerprint(value),fingerprint({...value,faturaMes:'2027-01'}));
+});
