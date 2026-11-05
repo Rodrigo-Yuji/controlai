@@ -12,6 +12,7 @@ export interface Draft {
   categoria: string;
   status: string;
   observacao: string;
+  origemImportacao?: string;
   selecionada: boolean;
   linha: number;
 }
@@ -46,6 +47,15 @@ export function money(value: string | number): number | null {
 export function moneyInput(cents: number): string {
   const absolute = Math.abs(cents);
   return `${Math.floor(absolute / 100)},${String(absolute % 100).padStart(2, '0')}`;
+}
+// Excel calculations can cache 99.89999999999999 rather than 99.90. Only
+// tolerate machine noise (< 0.000001 cent), never genuine fractional cents.
+export function spreadsheetMoney(value: Cell): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const cents = Math.round(value * 100);
+    if (Number.isSafeInteger(cents) && Math.abs(value * 100 - cents) <= 0.000001) return cents;
+  }
+  return typeof value === 'string' || typeof value === 'number' ? money(value) : null;
 }
 export function validDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.slice(0, 4) < '1900' || value.slice(0, 4) > '9999') return false;
@@ -127,7 +137,7 @@ export function spreadsheetDrafts(rows: Cell[][], columns: Columns, categories: 
   return rows.slice(1).flatMap((row, index) => {
     if (row.every(cell => cell === null || String(cell).trim() === '')) return [];
     const get = (key: Column) => columns[key] < 0 ? '' : row[columns[key]] ?? '';
-    const cents = money(get('valor') as string | number);
+    const cents = spreadsheetMoney(get('valor'));
     const rawType = normalize(String(get('tipo')));
     const type = ['receita', 'entrada', 'credito', 'c', 'income'].includes(rawType) ? 'receita'
       : ['despesa', 'saida', 'debito', 'd', 'expense'].includes(rawType) ? 'despesa'
@@ -157,10 +167,13 @@ export function toEntry(draft: Draft, accountId: string, categories: Categoria[]
   if (error) throw new Error(error);
   const category = categories.find(category => category.tipo === draft.tipo && category.nome === draft.categoria)!;
   return {contaId: accountId, descricao: draft.descricao.trim(), valorCentavos: money(draft.valor)!, data: draft.data, tipo: draft.tipo as Tipo,
-    categoria: category.nome, natureza: category.natureza as Natureza, status: draft.status as Status, observacao: draft.observacao.trim()};
+    categoria: category.nome, natureza: category.natureza as Natureza, status: draft.status as Status, observacao: draft.observacao.trim(),
+    ...(draft.origemImportacao ? {origemImportacao:draft.origemImportacao} : {})};
 }
 export function fingerprint(entry: Lancamento): string {
-  return JSON.stringify([entry.data, entry.tipo, entry.valorCentavos, normalize(entry.descricao), normalize(entry.categoria)]);
+  const fields: (string | number)[] = [entry.data, entry.tipo, entry.valorCentavos, normalize(entry.descricao), normalize(entry.categoria)];
+  if (entry.origemImportacao) fields.push(entry.origemImportacao);
+  return JSON.stringify(fields);
 }
 
 const numberWords: Record<string, number> = {zero:0, um:1, uma:1, dois:2, duas:2, tres:3, quatro:4, cinco:5, seis:6, sete:7, oito:8, nove:9, dez:10,

@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "eslint .",
-    "test": "node src/assistant.test.ts && node src/storage/sqlite.test.ts",
+    "test": "node src/assistant.test.ts && node src/monthly-plan.test.ts && node src/storage/sqlite.test.ts",
     "build:native": "tsc -b && vite build --mode native",
     "android:sync": "npm run build:native && cap sync android",
     "android:open": "cap open android",

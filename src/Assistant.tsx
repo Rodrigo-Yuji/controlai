@@ -4,6 +4,8 @@ import { db, type Categoria, type Conta, type Fechamento, type Lancamento } from
 import { hoje, moeda } from './utils';
 import { commandDraft, detectColumns, draftError, fingerprint, MAX_ROWS, parseCsv, spreadsheetDrafts, toEntry, type Cell, type Column, type Columns, type Draft } from './assistant';
 
+import { detectPlanLayout, inferSheetMonth, monthlyPlanDrafts, type PlanResult } from './monthly-plan';
+
 interface Props { conta: Conta; categorias: Categoria[]; registros: Lancamento[]; fechamentos: Fechamento[] }
 interface SpeechResult { isFinal: boolean; 0: { transcript: string } }
 interface Speech {
@@ -27,6 +29,10 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
   const [sheets, setSheets] = useState<{name: string; rows: Cell[][]}[]>([]);
   const [sheetIndex, setSheetIndex] = useState(0);
   const [columns, setColumns] = useState<Columns>(detectColumns([]));
+  const [format, setFormat] = useState('table');
+  const [planMonth, setPlanMonth] = useState('');
+  const [referenceDay, setReferenceDay] = useState(1);
+  const [planReport, setPlanReport] = useState<PlanResult | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [command, setCommand] = useState('');
   const [error, setError] = useState('');
@@ -58,11 +64,17 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
     if (speech.current) { speech.current.onend = null; speech.current.onerror = null; speech.current.onresult = null; speech.current.abort(); }
   }, []);
 
+  function chooseSheet(loaded: {name:string; rows:Cell[][]}[], index: number) {
+    setSheetIndex(index); setColumns(detectColumns(loaded[index].rows[0] ?? []));
+    setFormat(detectPlanLayout(loaded[index].rows) ? 'plan' : 'table');
+    setPlanMonth(inferSheetMonth(loaded[index].name));
+    setDrafts([]); setPlanReport(null); setError('');
+  }
   async function readFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]; event.target.value = '';
     if (!file) return;
     const request = ++fileRequest.current;
-    setError(''); setMessage(''); setDrafts([]); setSheets([]); setLoading(true);
+    setError(''); setMessage(''); setDrafts([]); setPlanReport(null); setSheets([]); setLoading(true);
     try {
       if (file.size > 5 * 1024 * 1024) throw new Error('Escolha um arquivo de até 5 MB.');
       let loaded: {name: string; rows: Cell[][]}[];
@@ -79,20 +91,22 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
       loaded = loaded.filter(sheet => sheet.rows.some(row => row.some(cell => cell !== null && String(cell).trim() !== '')));
       if (!loaded.length) throw new Error('A planilha está vazia.');
       if (request !== fileRequest.current) return;
-      setSheets(loaded); setSheetIndex(0); setColumns(detectColumns(loaded[0].rows[0] ?? []));
+      setSheets(loaded); chooseSheet(loaded, 0);
     } catch (err) { if (request === fileRequest.current) setError(err instanceof Error ? err.message : 'Não foi possível ler o arquivo.'); }
     finally { if (request === fileRequest.current) setLoading(false); }
   }
   function reviewSheet() {
-    setError(''); setMessage(''); setDrafts([]);
+    setError(''); setMessage(''); setDrafts([]); setPlanReport(null);
     try {
-      const result = spreadsheetDrafts(rows, columns, categorias, hoje());
+      const report = format === 'plan' ? monthlyPlanDrafts(rows, sheets[sheetIndex].name, planMonth, referenceDay, categorias) : null;
+      const result = report ? report.drafts : spreadsheetDrafts(rows, columns, categorias, hoje());
+      setPlanReport(report);
       if (!result.length) throw new Error('Não há lançamentos para revisar.');
       setDrafts(result);
     } catch (err) { setError(err instanceof Error ? err.message : 'Verifique as colunas.'); }
   }
   function reviewCommand() {
-    setError(''); setMessage(''); setDrafts([]);
+    setError(''); setMessage(''); setDrafts([]); setPlanReport(null);
     try { setDrafts([commandDraft(command, categorias, hoje())]); }
     catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível interpretar.'); }
   }
@@ -159,13 +173,19 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
     <p className="muted">Importe uma planilha ou descreva um lançamento. A interpretação usa regras locais, sem IA paga. Revise os dados antes de confirmar na conta <strong>{conta.nome}</strong>.</p>
     <fieldset disabled={loading || saving || listening} className="assistant-section panel">
       <legend>Importar planilha</legend>
-      <p className="muted">CSV ou Excel .xlsx, até 5 MB e {MAX_ROWS} lançamentos por aba. A primeira linha deve conter os nomes das colunas. Os arquivos são lidos neste dispositivo.</p>
+      <p className="muted">CSV ou Excel .xlsx, até 5 MB e {MAX_ROWS} lançamentos por aba. Aceita tabelas com cabeçalho na primeira linha e planos mensais com blocos de despesas e receitas. Os arquivos são lidos neste dispositivo.</p>
       <label className="assistant-file"><FileUp size={20}/>Selecionar planilha<input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={readFile}/></label>
       {loading && <p role="status">Lendo planilha…</p>}
       {sheets.length > 0 && <div className="fields assistant-mapping">
-        <label>Aba da planilha<select value={sheetIndex} onChange={event => {const index = Number(event.target.value); setSheetIndex(index); setColumns(detectColumns(sheets[index].rows[0] ?? [])); setDrafts([]);}}>{sheets.map((sheet, i) => <option key={i} value={i}>{sheet.name}</option>)}</select></label>
-        <p className="muted">Confira as colunas. Sem Tipo: valores negativos viram despesas e positivos viram receitas. Sem Data: usamos hoje. Sem Status: usamos confirmado. Categorias são sugeridas quando não informadas.</p>
+        <label>Aba da planilha<select value={sheetIndex} onChange={event => {chooseSheet(sheets, Number(event.target.value));}}>{sheets.map((sheet, i) => <option key={i} value={i}>{sheet.name}</option>)}</select></label>
+        <label>Formato da planilha<select value={format} onChange={event => {setFormat(event.target.value); setDrafts([]); setPlanReport(null);}}><option value="table">Tabela com cabeçalho</option><option value="plan">Plano mensal por blocos</option></select></label>
+        {format === 'plan' ? <>
+          <label>Mês da planilha<input type="month" value={planMonth} onChange={event => {setPlanMonth(event.target.value); setDrafts([]); setPlanReport(null);}}/></label>
+          <label>Dia de referência<input type="number" min={1} max={31} value={referenceDay} onChange={event => {setReferenceDay(Number(event.target.value)); setDrafts([]); setPlanReport(null);}}/></label>
+          <p className="muted">A aba informa apenas o mês. Escolha um dia de referência e ajuste as datas na revisão; dias acima do último dia do mês serão ajustados. Somente linhas marcadas como OK/pago ficam confirmadas. Parcelas são importadas como lançamentos individuais, sem criar parcelas futuras. Dívidas, totais, reservas e cálculos auxiliares não são lançamentos e aparecem no relatório de itens ignorados.</p>
+        </> : <><p className="muted">Confira as colunas. Sem Tipo: valores negativos viram despesas e positivos viram receitas. Sem Data: usamos hoje. Sem Status: usamos confirmado. Categorias são sugeridas quando não informadas.</p>
         <div className="assistant-columns">{(Object.keys(columnLabels) as Column[]).map(key => <label key={key}>Coluna de {columnLabels[key].toLowerCase()}{['descricao','valor'].includes(key) ? ' *' : ''}<select value={columns[key]} onChange={event => {setColumns(current => ({...current, [key]:Number(event.target.value)})); setDrafts([]);}}><option value={-1}>Não informada</option>{rows[0]?.map((header, index) => <option key={index} value={index}>{String(header ?? '') || `Coluna ${index + 1}`}</option>)}</select></label>)}</div>
+        </>}
         <button className="primary" type="button" onClick={reviewSheet}>Revisar planilha</button>
       </div>}
     </fieldset>
@@ -182,12 +202,18 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
     </section>
     {error && <p className="error assistant-message" role="alert">{error}</p>}
     {message && <p className="success assistant-message" role="status">{message}</p>}
+    {planReport && <section className="panel">
+      <p>Referência: {planReport.month}, dia {planReport.day}. {planReport.drafts.length} lançamento(s) identificado(s).</p>
+      <details><summary>{planReport.skipped.length} item(ns) ignorado(s) — conferir</summary>
+        <ul>{planReport.skipped.map((item, index) => <li key={index}>{item.coluna}{item.linha} · {item.descricao || 'Sem descrição'}: {item.motivo}</li>)}</ul>
+      </details>
+    </section>}
     {drafts.length > 0 && <section className="panel assistant-review">
       <h3>Revisar lançamentos</h3>
       <p className="muted">Nenhum dado foi gravado ainda. Ajuste as informações e desmarque as linhas que não deseja adicionar. Categorias e meses fechados são conferidos novamente ao salvar.</p>
       <fieldset disabled={saving} className="assistant-review-fields">
         <label className="check"><input type="checkbox" checked={skipDuplicates} onChange={event => setSkipDuplicates(event.target.checked)}/>Ignorar possíveis duplicatas</label>
-        <p className="muted">Comparamos data, tipo, valor, descrição e categoria. Desmarque a opção para permitir lançamentos iguais de propósito.</p>
+        <p className="muted">Comparamos data, tipo, valor, descrição e categoria; nos planos mensais, também a célula de origem. Células diferentes podem representar gastos iguais. Desmarque a opção para permitir lançamentos iguais de propósito.</p>
         {drafts.map((draft, index) => {
           const validation = draftError(draft, categorias, closed);
           const available = categorias.filter(category => category.tipo === draft.tipo);

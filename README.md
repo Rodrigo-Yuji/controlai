@@ -94,3 +94,22 @@ No Android, exportar abre o compartilhamento nativo para escolher onde guardar o
 Callbacks de `db.transaction` recebem `tx` explicitamente: use `tx` nas operações internas. Isso evita que uma gravação independente entre por engano na transação assíncrona de outra operação.
 
 `npm test` executa as regras do Assistente e os testes de armazenamento com SQLite real (`node:sqlite`): persistência em arquivo, rollback, concorrência, isolamento de contas, migração/idempotência, arquivo legado preservado e rejeição de centavos inválidos. A compilação do APK não substitui os testes do plugin e do compartilhamento em um aparelho Android real.
+
+### Importar planos mensais por blocos
+
+Em **Assistente → Selecionar planilha**, arquivos `.xlsx` com blocos de
+Despesas/Receitas lado a lado são reconhecidos automaticamente. Escolha a aba,
+confira o mês e informe um dia de referência: o plano contém somente o mês,
+não a data efetiva de cada compra. Datas permanecem editáveis na revisão.
+
+Observações e indicações de parcelas são preservadas; não são geradas parcelas
+futuras. Somente marcações explícitas como `OK` ou `pago` confirmam os valores;
+os demais ficam previstos. Dívidas anteriores, totais, reservas/poupança,
+valores zero e cálculos auxiliares aparecem no relatório de itens ignorados.
+Linhas com valor e sem descrição exigem correção ou desmarcação antes de salvar.
+
+A identificação de possíveis duplicatas também considera a célula de origem
+nos planos mensais, preservando compras iguais em linhas diferentes. Confira a
+revisão ao importar versões reorganizadas da planilha ou dados já cadastrados
+manualmente. Nada é gravado antes de **Confirmar lançamentos**, e os meses
+fechados continuam protegidos. O processamento do arquivo ocorre localmente.
