@@ -12,7 +12,7 @@
     "build:native": "tsc -b && vite build --mode native",
     "android:sync": "npm run build:native && cap sync android",
     "android:open": "cap open android",
-    "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug --max-workers=2"
+    "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug --max-workers=2 && cd .. && python3 scripts/verify-android-bundle.py"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "8.1.1",

@@ -150,3 +150,11 @@ A identidade visual utiliza uma versão adaptada do símbolo enviado pelo usuár
 recursos são compartilhados pelo cabeçalho, ícone PWA/favicon e variantes de ícone
 e abertura do Android. O modo noturno define fundos e cores de texto específicos
 para cartões, filtros, estados, campos e gráficos.
+
+Para gerar o Android, use `npm run android:build`: a sequência interrompe em falhas
+de compilação/sincronização e compara todos os arquivos web dentro do APK com o
+build nativo recém-gerado. A verificação rejeita interfaces antigas e service
+workers de PWA no pacote Android. A versão da interface é exibida em Ajustes.
+Também é possível conferir um APK com
+`python3 scripts/verify-android-bundle.py caminho/do/app.apk` logo após o build
+nativo (antes de substituir `dist` por um build web).
