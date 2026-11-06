@@ -51,3 +51,13 @@ test('couple ledger rejects duplicate months, wrong proportions and duplicate tr
 test('historical transfers cannot spend future releases even when lifetime balance is positive',async()=>{
  const {validateCoupleBudget}=await import('./couple-budget.ts');const a={id:'C',nome:'C',tipo:'casal' as const,conjunta:true,padrao:true,distribuicoesCasal:[{mes:'2026-11',totalCentavos:200000,comumCentavos:100000,pessoais:[50000,50000] as [number,number],confirmadaEm:'2026-11-05'}]};assert.throws(()=>validateCoupleBudget({...a,transferenciasPessoais:[{id:'T',titular:1,data:'2026-10-31',valorCentavos:100}]}),/nessa data/);assert.throws(()=>validateCoupleBudget({...a,transferenciasPessoais:[{id:'T',titular:1,data:'2026-11-05',valorCentavos:50001}]}),/ultrapassa/);
 });
+
+test('custom personal percentages preserve the common half and every cent',async()=>{
+ const {splitCoupleBudget}=await import('./couple-budget.ts');assert.deepEqual(splitCoupleBudget(200000,[2000,3000]),{comum:100000,pessoais:[40000,60000]});for(const total of [1,3,210919,Number.MAX_SAFE_INTEGER]){const d=splitCoupleBudget(total,[3333,1667]);assert.equal(d.comum+d.pessoais[0]+d.pessoais[1],total);}assert.deepEqual(splitCoupleBudget(210919,[0,5000]),{comum:105460,pessoais:[0,105459]});assert.throws(()=>splitCoupleBudget(1000,[2500,2600]),/50%/);assert.throws(()=>splitCoupleBudget(1000,[-1,5001]));
+});
+test('legacy monthly releases stay 25/25 even with new account defaults',async()=>{
+ const {validateCoupleBudget}=await import('./couple-budget.ts');const account={id:'C',nome:'C',tipo:'casal' as const,conjunta:true,padrao:true,percentuaisPessoaisCasal:[2000,3000] as [number,number],distribuicoesCasal:[{mes:'2026-11',totalCentavos:200000,comumCentavos:100000,pessoais:[50000,50000] as [number,number],confirmadaEm:'2026-11-05'}]};validateCoupleBudget(account);assert.deepEqual(account.distribuicoesCasal[0].pessoais,[50000,50000]);assert.throws(()=>validateCoupleBudget({...account,percentuaisPessoaisCasal:[1000,1000]}));
+});
+test('adjusting a confirmed percentage cannot uncover historic transfers',async()=>{
+ const {validateCoupleBudget}=await import('./couple-budget.ts');const account={id:'C',nome:'C',tipo:'casal' as const,conjunta:true,padrao:true,distribuicoesCasal:[{mes:'2026-11',totalCentavos:200000,comumCentavos:100000,pessoais:[2000,98000] as [number,number],percentuaisPessoais:[100,4900] as [number,number],confirmadaEm:'2026-11-05'}],transferenciasPessoais:[{id:'T',titular:1 as const,data:'2026-11-05',valorCentavos:10000}]};assert.throws(()=>validateCoupleBudget(account),/ultrapassa/);
+});
