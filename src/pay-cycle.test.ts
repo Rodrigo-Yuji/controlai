@@ -11,16 +11,17 @@ test('salary convention counts Saturdays and excludes Sundays and fixed national
 });
 test('cycle ends the day before next payday and includes spending from next calendar month',()=>{
  const cycle=payCycleWeeks('2026-11',[entry('2026-11-06'),entry('2026-11-07'),entry('2026-12-04'),entry('2026-12-05'),entry('2026-11-08',{status:'previsto'}),entry('2026-11-09',{recorrenciaId:1}),entry('2026-11-10',{parcela:{grupo:'x',numero:1,total:2}}),entry('2026-11-11',{tipo:'receita'})],10001);
+ assert.deepEqual(cycle.semanas.map(s=>[s.inicio,s.fim]),[['2026-11-07','2026-11-08'],['2026-11-09','2026-11-15'],['2026-11-16','2026-11-22'],['2026-11-23','2026-11-29'],['2026-11-30','2026-12-04']]);
  assert.equal(cycle.inicio,'2026-11-07'); assert.equal(cycle.fim,'2026-12-04');
- assert.equal(cycle.semanas.length,4);assert.equal(cycle.semanas.reduce((sum,s)=>sum+s.gasto,0),2000);
+ assert.equal(cycle.semanas.length,5);assert.equal(cycle.semanas.reduce((sum,s)=>sum+s.gasto,0),2000);
  assert.equal(cycle.semanas.reduce((sum,s)=>sum+s.limite,0),10001);
- assert.deepEqual(cycle.semanas.map(s=>s.limite),[2501,2500,2500,2500]);
+ assert.deepEqual(cycle.semanas.map(s=>s.limite),[714,2500,2500,2501,1786]);
 });
 test('cycles have contiguous nonoverlapping weeks and conserve every cent across years',()=>{
  for(let year=2024;year<=2034;year++)for(let month=1;month<=12;month++){
  const cycle=payCycleWeeks(`${year}-${String(month).padStart(2,'0')}`,[],10003);
  let expected=cycle.inicio;
- for(const week of cycle.semanas){assert.equal(week.inicio,expected);assert.ok(week.fim>=week.inicio);assert.ok((Date.parse(week.fim)-Date.parse(week.inicio))/86400000<=6);expected=new Date(Date.parse(week.fim)+86400000).toISOString().slice(0,10);}
+ for(const week of cycle.semanas){if(week.inicio!==cycle.inicio)assert.equal(new Date(`${week.inicio}T00:00:00Z`).getUTCDay(),1);if(week.fim!==cycle.fim)assert.equal(new Date(`${week.fim}T00:00:00Z`).getUTCDay(),0);assert.equal(week.inicio,expected);assert.ok(week.fim>=week.inicio);assert.ok((Date.parse(week.fim)-Date.parse(week.inicio))/86400000<=6);expected=new Date(Date.parse(week.fim)+86400000).toISOString().slice(0,10);}
  assert.equal(cycle.semanas.at(-1)?.fim,cycle.fim);assert.equal(cycle.semanas.reduce((s,w)=>s+w.limite,0),10003);
  }
 });

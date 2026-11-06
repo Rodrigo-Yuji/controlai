@@ -95,3 +95,7 @@ As compras de mercado ficam recolhidas, com resumo de data, total, pessoas acert
 Os filtros Todas, Com pendências e Quitadas consideram os acertos pessoais e os repasses; não representam confirmação de pagamento da nota ao estabelecimento. Pendências aparecem primeiro, com 10 compras por vez e Carregar mais compras. Expandir uma compra mostra seus itens e ações de pagamento. O histórico de entradas/repasses começa recolhido. Editar e remover pessoa usam ícones com nomes acessíveis e dicas ao passar o mouse.
 
 No orçamento semanal, a referência diária divide o limite semanal pelos dias reais daquela semana, arredondando para baixo em centavos. Não é o saldo restante dividido pelos dias que faltam: os gastos e o restante da semana aparecem separadamente. O botão de informações explica esse cálculo e o ciclo do quinto dia útil.
+
+## Semanas do ciclo de pagamento (1.14)
+
+O ciclo mantém o quinto dia útil como início e a véspera do próximo pagamento como fim. Seus trechos seguem segunda a domingo; a primeira e a última semana podem ser parciais. Os limites são proporcionais ao número de dias de cada trecho e os centavos são distribuídos sem alterar o total do ciclo. Em novembro de 2026: 07–08/11, 09–15/11, 16–22/11, 23–29/11 e 30/11–04/12. A lista compacta mostra período, limite, gasto, restante e referência diária sem empilhar cada informação em várias linhas.

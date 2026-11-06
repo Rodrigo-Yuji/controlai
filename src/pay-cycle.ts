@@ -22,14 +22,21 @@ export function payCycleWeeks(month:string, entries:Lancamento[], budgetCentavos
   const nextMonth=iso(new Date(Date.UTC(year,number,1))).slice(0,7);
   const end=iso(advance(new Date(`${fifthBusinessDay(nextMonth)}T00:00:00Z`),-1));
   const weeks:{inicio:string;fim:string;gasto:number;limite:number}[]=[];
-  for(let current=new Date(`${start}T00:00:00Z`);iso(current)<=end;current=advance(current,7)) {
-    const inicio=iso(current),fim=iso(advance(current,6))<end?iso(advance(current,6)):end;
+  for(let current=new Date(`${start}T00:00:00Z`);iso(current)<=end;) {
+    const inicio=iso(current),sunday=iso(advance(current,(7-current.getUTCDay())%7)),fim=sunday<end?sunday:end;
     const gasto=entries.filter(entry=>entry.status==='confirmado'&&entry.tipo==='despesa'&&!isMonthlyCommitment(entry)&&entry.data>=inicio&&entry.data<=fim).reduce((sum,entry)=>sum+entry.valorCentavos,0);
     weeks.push({inicio,fim,gasto,limite:0});
+    current=advance(new Date(`${fim}T00:00:00Z`),1);
   }
   const budget=Math.max(0,Math.round(budgetCentavos));
-  const base=Math.floor(budget/weeks.length), remainder=budget%weeks.length;
-  weeks.forEach((week,index)=>week.limite=base+(index<remainder?1:0));
+  const totalDays=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
+  // Cumulative rounding prorates partial weeks and conserves every cent.
+  let daysPassed=0,allocated=0;
+  for(const week of weeks){
+    daysPassed+=Math.round((Date.parse(week.fim)-Date.parse(week.inicio))/86400000)+1;
+    const cumulative=Number(BigInt(budget)*BigInt(daysPassed)/BigInt(totalDays));
+    week.limite=cumulative-allocated;allocated=cumulative;
+  }
   return {inicio:start,fim:end,semanas:weeks};
 }
 export const percentageText = (value:number) => new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(value);
