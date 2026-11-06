@@ -25,6 +25,7 @@ export class SupabaseClient {
     if(response.status===429)throw new SyncError('Limite de envios ou tentativas atingido. Tente novamente mais tarde.','RATE_LIMIT');
     if(data?.code==='weak_password')throw new SyncError('A senha não atende às regras do projeto. Use uma senha mais forte com pelo menos 8 caracteres.','PASSWORD');
     if(data?.code==='40001'||String(data?.message).includes('SYNC_CONFLICT'))throw new SyncError('Outro dispositivo alterou a cópia. Sincronize novamente.','CONFLICT');
+    if(response.status===403||data?.code==='42501')throw new SyncError('Acesso não autorizado ou revogado.','FORBIDDEN');
     if(response.status===401)throw new SyncError('Entre novamente para continuar a sincronização.','AUTH');
     if(response.status===404||data?.code==='PGRST202'||data?.code==='42P01')throw new SyncError('Configure o banco com o arquivo supabase/setup.sql antes de sincronizar.','SETUP');
     throw new SyncError(path.startsWith('/auth/')?'Não foi possível entrar. Confira e-mail, senha e confirmação do e-mail.':'Não foi possível sincronizar. Confira a configuração e a conexão.');
@@ -63,6 +64,11 @@ export class SupabaseClient {
   if(this.session.expires_at<Date.now()/1000+30)await this.accept(await this.request('/auth/v1/token?grant_type=refresh_token',{refresh_token:this.session.refresh_token}));
   return this.session!.access_token;
  }
+ async accountViewers(accountId:string){return await this.request('/rest/v1/rpc/controlai_account_viewers',{p_account:accountId},await this.token()) as {email:string;created_at:string}[];}
+ async setAccountViewer(accountId:string,email:string,allow:boolean){await this.request('/rest/v1/rpc/controlai_set_account_viewer',{p_account:accountId,p_email:email,p_allow:allow},await this.token());}
+ async sharedAccounts(){return await this.request('/rest/v1/rpc/controlai_shared_accounts',{},await this.token()) as {owner:string;account_id:string;nome:string;tipo:string}[];}
+ async sharedAccount(owner:string,accountId:string){return await this.request('/rest/v1/rpc/controlai_shared_account',{p_owner:owner,p_account:accountId},await this.token()) as {revision:number;updated_at:string;snapshot:unknown};}
+ async logout(){await this.request('/auth/v1/logout?scope=local',{},await this.token());this.session=null;}
  async revision():Promise<number>{
   const data=await this.request('/rest/v1/controlai_vaults?select=revision',undefined,await this.token()) as {revision:number}[];
   if(!Array.isArray(data)||data.length>1)throw Error('Resposta de sincronização inválida.');

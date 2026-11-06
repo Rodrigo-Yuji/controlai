@@ -58,7 +58,7 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
  });}
  if(!loaded)return null;
  return <section className="panel sync-panel"><h3>Sincronização entre dispositivos</h3>
- <p className="muted">Use o mesmo projeto e login no celular e computador. O SQLite continua no Android; as alterações sincronizam quando há internet. A nuvem guarda uma cópia dos dados de todas as contas financeiras deste dispositivo.</p>
+ <p><a href="?consulta=1">Entrar em contas compartilhadas · somente leitura</a></p><p className="muted">Use o mesmo projeto e login no celular e computador. O SQLite continua no Android; as alterações sincronizam quando há internet. A nuvem guarda uma cópia dos dados de todas as contas financeiras deste dispositivo.</p>
  <fieldset disabled={busy} className="sync-fields">
  {!session&&<><details open={!config}><summary>Configurar Supabase</summary><div className="fields sync-config">
  <label>URL do projeto<input type="url" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://projeto.supabase.co"/></label>
