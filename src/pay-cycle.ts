@@ -16,11 +16,16 @@ export function fifthBusinessDay(month: string): string {
   }
   throw new Error('Não foi possível calcular o pagamento.');
 }
+// Actual payroll rule: a Saturday due date is paid on the preceding Friday.
+export function salaryPayday(month:string):string{
+ const due=new Date(`${fifthBusinessDay(month)}T00:00:00Z`);
+ return iso(due.getUTCDay()===6?advance(due,-1):due);
+}
 export function payCycleWeeks(month:string, entries:Lancamento[], budgetCentavos:number) {
-  const start=fifthBusinessDay(month);
+  const start=salaryPayday(month);
   const [year,number]=month.split('-').map(Number);
   const nextMonth=iso(new Date(Date.UTC(year,number,1))).slice(0,7);
-  const end=iso(advance(new Date(`${fifthBusinessDay(nextMonth)}T00:00:00Z`),-1));
+  const end=iso(advance(new Date(`${salaryPayday(nextMonth)}T00:00:00Z`),-1));
   const weeks:{inicio:string;fim:string;gasto:number;limite:number}[]=[];
   for(let current=new Date(`${start}T00:00:00Z`);iso(current)<=end;) {
     const inicio=iso(current),sunday=iso(advance(current,(7-current.getUTCDay())%7)),fim=sunday<end?sunday:end;

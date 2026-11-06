@@ -99,3 +99,7 @@ No orçamento semanal, a referência diária divide o limite semanal pelos dias 
 ## Semanas do ciclo de pagamento (1.14)
 
 O ciclo mantém o quinto dia útil como início e a véspera do próximo pagamento como fim. Seus trechos seguem segunda a domingo; a primeira e a última semana podem ser parciais. Os limites são proporcionais ao número de dias de cada trecho e os centavos são distribuídos sem alterar o total do ciclo. Em novembro de 2026: 07–08/11, 09–15/11, 16–22/11, 23–29/11 e 30/11–04/12. A lista compacta mostra período, limite, gasto, restante e referência diária sem empilhar cada informação em várias linhas.
+
+## Recebimento antecipado (1.15)
+
+O quinto dia útil continua contando sábado, exceto domingos e feriados nacionais fixos. Quando ele cai no sábado, o recebimento é antecipado para sexta. O orçamento começa no recebimento e termina na véspera do próximo recebimento, aplicando a antecipação nas duas pontas. Em novembro de 2026, o ciclo é 06/11–03/12; em dezembro, 04/12–06/01/2027. As semanas de segunda a domingo e o rateio proporcional por dias são mantidos.
