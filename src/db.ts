@@ -5,7 +5,8 @@ export interface Lancamento { contaId?: string; id?: number; descricao: string; 
 export interface Categoria { contaId?: string; id?: number; nome: string; tipo: Tipo; natureza: Natureza; }
 export interface Recorrencia { contaId?: string; id?: number; descricao: string; valorCentavos: number; categoria: string; natureza: Natureza; tipo: Tipo; inicio: string; dia: number; ativa: boolean; observacao?: string; cartaoId?:string; }
 export interface Salario { id: string; contaId?: string; titular?: string; liquido: number; refeicao: number; beneficio: number; adicional: number; }
-export interface Configuracao { id: string; contaId?: string; baseReceita?: 'atual'|'prevista'; fixos: number; variaveis: number; reserva: number; }
+export interface PlanejamentoMensal {mes:string;baseReceita:'atual'|'prevista';baseCentavos:number;fixosCentavos:number;variaveisCentavos:number;reservaCentavos:number;fixos:number;variaveis:number;reserva:number;travadoEm:string}
+export interface Configuracao { planejamentos?:PlanejamentoMensal[]; id: string; contaId?: string; baseReceita?: 'atual'|'prevista'; fixos: number; variaveis: number; reserva: number; }
 export interface Reserva { contaId?: string; id?: number; descricao: string; valorCentavos: number; data: string; }
 export interface Fechamento { id: string; contaId: string; mes: string; fechadoEm: string; }
 export interface Parcela { grupo: string; numero: number; total: number; }

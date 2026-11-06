@@ -1,9 +1,9 @@
-import {ArrowUpRight,Clock,Home,Landmark,Wallet} from 'lucide-react';
+import {ArrowUpRight,Clock,Landmark,Wallet} from 'lucide-react';
 import {moeda} from './utils';
 type Balance={creditado:number;transferido:number;pendente:number};
-export function MoneyOverview({common,recorded,available,period}:{common:number;recorded:number;available:number;period:string}){
- const cards=[{label:'Uso comum previsto',value:common,detail:'Orçamento do mês',icon:<Home size={20}/>,kind:'planned'},{label:'Saldo registrado da conta',value:recorded,detail:'Acumulado',icon:<Landmark size={20}/>,kind:'recorded'},{label:'Disponível para uso comum',value:available,detail:'Acumulado',icon:<Wallet size={20}/>,kind:'available'}];
- return <section className="panel money-overview"><h3>Dinheiro comum e pessoal</h3><div className="money-visual-grid">{cards.map(card=><div className={`money-visual-card ${card.kind}${card.value<0?' negative':''}`} key={card.label}><div className="money-card-caption"><span className="money-card-icon" aria-hidden="true">{card.icon}</span><span>{card.label}</span></div><strong className="money-card-amount">{moeda(card.value)}</strong><small>{card.detail}</small></div>)}</div><p className="money-note">Saldo e disponibilidade acumulados até {period}, conforme os registros do aplicativo.</p></section>;
+export function AccountBalance({balance,period}:{balance:{current:number;reserve:number;total:number};period:string}){
+ const cards=[{label:'Total · Corrente + Reserva',value:balance.total,icon:<Landmark size={20}/>,kind:'recorded'},{label:'Corrente',value:balance.current,icon:<Wallet size={20}/>,kind:'available'},{label:'Reserva',value:balance.reserve,icon:<Landmark size={20}/>,kind:'planned'}];
+ return <section className="panel money-overview" aria-label="Saldo registrado da conta"><h3>Saldo registrado da conta</h3><div className="money-visual-grid">{cards.map(card=><div className={`money-visual-card ${card.kind}${card.value<0?' negative':''}`} key={card.label}><div className="money-card-caption"><span className="money-card-icon" aria-hidden="true">{card.icon}</span><span>{card.label}</span></div><strong className="money-card-amount">{moeda(card.value)}</strong></div>)}</div><p className="money-note">Acumulado até {period}, pelos recebimentos, pagamentos e transferências registrados. Corrente + reserva = total.</p></section>;
 }
 export function PersonalFundsReport({balances,names,period}:{balances:Balance[];names:[string,string];period:string}){
  const sent=balances.reduce((sum,p)=>sum+p.transferido,0),pending=balances.reduce((sum,p)=>sum+p.pendente,0);
