@@ -1,23 +1,15 @@
-# Divisão variável e saldos pessoais do casal
+# Saldos pessoais do casal — percentual único (1.12)
 
-Somente a conta Casal divide o orçamento variável em 50% de uso comum e 50% para dividir entre os titulares. O padrão é 25% do orçamento variável para cada titular. O cálculo considera o valor variável da distribuição da renda salva, sobre a base de renda selecionada. Com R$ 2.000 variáveis, R$ 1.000 ficam no uso comum e R$ 500 para cada pessoa. Eventuais centavos são ajustados para preservar o total.
+Em Orçamento → Saldos pessoais do casal existe apenas o campo **Parte pessoal do casal (%)**. Ele define quanto do orçamento variável total pertence aos dois titulares, em partes iguais. Pode variar de 0% a 100%, com até duas casas decimais. O restante é destinado ao uso comum.
 
-O orçamento semanal e o controle de gastos variáveis usam somente a parte comum, inclusive antes da liberação pessoal. Os lançamentos de despesas nessa conta continuam sendo gastos comuns; não registre novamente como despesa os valores transferidos aos titulares.
+Exemplo para R$ 2.000 variáveis: escolhendo 40%, R$ 800 são pessoais (R$ 400 para cada titular) e R$ 1.200 são comuns. Escolhendo 60%, cada titular recebe R$ 600 e o comum fica com R$ 800. A simulação em reais aparece logo abaixo do campo. Eventual centavo indivisível fica com o segundo titular, preservando o total.
 
-Em Orçamento → Saldos pessoais do casal, confira a simulação e use **Confirmar distribuição** quando o dinheiro estiver disponível. A confirmação libera as duas parcelas pessoais e preserva os valores daquele mês mesmo se a renda/configuração mudar. Cada mês pode ter uma única distribuição. Nenhum saldo pessoal é creditado automaticamente.
+O orçamento semanal e o controle de gastos variáveis usam o restante comum. Confirme a distribuição quando o dinheiro estiver disponível: nada é liberado automaticamente. A porcentagem confirmada fica como padrão para os próximos meses; não altera meses anteriores.
 
-Os nomes vêm dos titulares cadastrados em Ajustes → Salário fixo e benefícios. Os saldos são separados pelos dois titulares, acumulam entre meses e anos e mostram: destinado acumulado, já transferido e a transferir. Selecionar um mês antigo mostra os saldos até aquele mês.
+Os saldos pessoais acumulam entre meses e anos. Transferências parciais registram o envio efetivo à conta bancária pessoal e não são despesas de consumo. O uso posterior do dinheiro não precisa ser registrado nesta conta. Não registre a mesma transferência novamente como despesa. Os nomes vêm de Ajustes → Salário fixo e benefícios.
 
-**Transferir para…** registra a saída efetiva da conta conjunta para a conta bancária pessoal. Aceita pagamentos parciais e uma data explícita. Não é despesa de consumo, não afeta os gráficos de despesas nem o limite semanal e não exige registrar os gastos pessoais posteriores. O histórico mostra as liberações e transferências. Não há integração com o banco: é necessário fazer a transferência bancária e registrar o valor no aplicativo.
+**Ajustar percentual** permite mudar um mês confirmado, recalculando as duas parcelas iguais e a parte comum sobre o total original daquele mês. Não é permitido deixar transferências históricas sem cobertura. Meses fechados continuam protegidos. Cancelar distribuição e excluir transferência mantêm as mesmas proteções; excluir serve para corrigir um registro, não para representar uma devolução real do titular.
 
-A tela inicial separa o saldo registrado da conta conjunta dos valores ainda pertencentes aos titulares. O saldo registrado acumula receitas confirmadas menos despesas confirmadas, movimentos de reserva e transferências pessoais até o mês selecionado; o disponível comum também desconta os valores pessoais pendentes. Esse cálculo depende dos lançamentos cadastrados e não consulta o saldo real do banco.
+Distribuições antigas ficam preservadas, inclusive as que tinham valores diferentes por titular. Um ajuste explícito nessas distribuições passa a usar a nova regra igualitária. O saldo registrado da conta conjunta considera receitas e despesas confirmadas, reserva e transferências; o disponível comum desconta ainda os saldos pessoais pendentes. Não há consulta automática ao banco.
 
-Cancelar uma distribuição recalcula os saldos e só é permitido se todas as transferências continuarem cobertas na respectiva data. Excluir uma transferência devolve o valor ao saldo a transferir; faça isso apenas para corrigir registros, não para representar uma devolução real do titular. Meses fechados bloqueiam alterações nas respectivas distribuições e transferências. Uma transferência não pode usar uma liberação de mês futuro, mesmo que o saldo atual seja positivo.
-
-Liberações e transferências são salvas junto à conta: integram SQLite, backup e sincronização Supabase, sem novas tabelas ou execução de SQL. Atualize o APK e o site para usar os mesmos controles. Solo e Gestora mantêm suas regras anteriores. Uma conta com histórico pessoal precisa manter o tipo Casal para preservar o acesso aos saldos.
-
-## Percentuais pessoais (1.11)
-
-Em Saldos pessoais do casal, os campos de cada titular indicam percentuais do orçamento variável **total**. Eles somam 50%; os outros 50% continuam no uso comum. Ao preencher um percentual, o outro é ajustado automaticamente. Exemplo: com R$ 2.000 variáveis, 20% e 30% resultam em R$ 400 e R$ 600 pessoais, além de R$ 1.000 comuns. O valor simulado fica logo abaixo de cada campo. São aceitos zero e percentuais com até duas casas decimais.
-
-Confirmar a distribuição salva os percentuais para os próximos meses, sem alterar meses já confirmados. Distribuições antigas sem percentuais continuam em 25%/25%. **Ajustar percentuais** permite alterar um mês confirmado, preservando o total daquele mês, a parte comum e as transferências. A operação só é concluída se nenhum titular ficar sem saldo para cobrir suas transferências históricas. Meses fechados continuam protegidos. Os percentuais integram o backup e a sincronização.
+A porcentagem, liberações e transferências integram SQLite, backup e sincronização. Não são necessárias novas tabelas ou SQL no Supabase. Atualize o APK e o site para utilizar o mesmo controle.

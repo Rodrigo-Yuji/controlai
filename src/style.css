@@ -148,3 +148,5 @@ html .top.account-colored-header{background:var(--account-color);color:var(--acc
 .couple-balances{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}.couple-balances>div{min-width:0;border:1px solid #94a3b855;border-radius:12px;padding:16px;overflow-wrap:anywhere}.couple-budget summary{cursor:pointer;font-weight:600}.couple-budget .record{flex-wrap:wrap}@media(max-width:700px){.couple-balances{grid-template-columns:1fr}}
 
 .couple-percentage-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:16px 0}.couple-percentage-fields>div{min-width:0}.couple-percentage-fields input{width:100%}@media(max-width:700px){.couple-percentage-fields{grid-template-columns:1fr}}
+
+.single-percentage{grid-template-columns:minmax(0,1fr);max-width:420px}.couple-simulation{margin:12px 0}
