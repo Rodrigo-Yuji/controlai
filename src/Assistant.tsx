@@ -1,3 +1,4 @@
+import MoneyInput from './MoneyInput';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FileUp, Mic, MicOff } from 'lucide-react';
 import { nativeSpeech, SpeechInput } from './native-speech';
@@ -257,7 +258,7 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
             {duplicates.has(index) && <p className="assistant-warning">Possível duplicata{skipDuplicates ? ' — será ignorada.' : ' — será adicionada se selecionada.'}</p>}
             <div className="fields assistant-columns">
               <label>Descrição<input maxLength={120} value={draft.descricao} onChange={event => updateDraft(index, {descricao:event.target.value})}/></label>
-              <label>Valor (R$)<input inputMode="decimal" value={draft.valor} onChange={event => updateDraft(index, {valor:event.target.value})}/>{!draft.valor && draft.valorOriginal && <small>Valor original não interpretado: {draft.valorOriginal}</small>}</label>
+              <label>Valor (R$)<MoneyInput value={draft.valor} onChange={next=> updateDraft(index, {valor:next})}/>{!draft.valor && draft.valorOriginal && <small>Valor original não interpretado: {draft.valorOriginal}</small>}</label>
               <label>Data<input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(draft.data) ? draft.data : ''} onChange={event => updateDraft(index, {data:event.target.value})}/></label>
               <label>Tipo<select value={draft.tipo} onChange={event => {const tipo = event.target.value; updateDraft(index, {tipo, categoria:categorias.find(category => category.tipo === tipo)?.nome ?? ''});}}>{!['despesa','receita'].includes(draft.tipo) && <option value={draft.tipo}>Selecione o tipo</option>}<option value="despesa">Despesa</option><option value="receita">Receita</option></select></label>
               <label>Categoria<select value={draft.categoria} onChange={event => updateDraft(index, {categoria:event.target.value})}>{!available.some(category => category.nome === draft.categoria) && <option value={draft.categoria}>{draft.categoria ? `${draft.categoria} — selecione uma categoria válida` : 'Selecione uma categoria'}</option>}{available.map(category => <option key={category.id} value={category.nome}>{category.nome}</option>)}</select></label>
