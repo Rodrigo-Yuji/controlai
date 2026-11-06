@@ -27,3 +27,7 @@ test('cycles have contiguous nonoverlapping weeks and conserve every cent across
 test('formats remaining percentages in Portuguese without floating point noise',()=>{
  assert.equal(percentageText(99.46),'99,46');assert.equal(percentageText(Math.round((100-99.46)*100)/100),'0,54');assert.equal(percentageText(100),'100');
 });
+
+test('daily reference counts actual days including short final weeks and preserves a cent-safe limit',async()=>{
+ const {weeklyDailyReference}=await import('./pay-cycle.ts');assert.deepEqual(weeklyDailyReference({inicio:'2026-11-07',fim:'2026-11-13',limite:10000}),{dias:7,centavos:1428});assert.deepEqual(weeklyDailyReference({inicio:'2026-11-28',fim:'2026-11-30',limite:10000}),{dias:3,centavos:3333});assert.deepEqual(weeklyDailyReference({inicio:'2026-12-31',fim:'2027-01-01',limite:100}),{dias:2,centavos:50});
+});

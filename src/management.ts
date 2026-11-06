@@ -58,3 +58,11 @@ export function validateFinancialReferences(accounts:Conta[],entries:Lancamento[
 export function personMarketBalance(purchases:CompraMercado[],entries:Lancamento[],personId:string){
  return purchases.reduce((sum,purchase)=>{const settlement=marketSettlement(purchase);const receive=settlement.receber[personId]??0,pay=purchase.pagadorPessoaId===personId?settlement.pagarCentavos:0;return {pessoais:sum.pessoais+(settlement.pessoais[personId]??0),receber:sum.receber+receive,recebido:sum.recebido+marketPaid(entries,purchase.id,personId,'receber'),pagar:sum.pagar+pay,pago:sum.pago+marketPaid(entries,purchase.id,personId,'pagar')};},{pessoais:0,receber:0,recebido:0,pagar:0,pago:0});
 }
+
+export function marketProgress(purchase:CompraMercado,entries:Lancamento[]){
+ const settlement=marketSettlement(purchase),people=Object.entries(settlement.pessoais).filter(([,amount])=>amount>0);
+ const reimbursementPending=Object.entries(settlement.receber).reduce((sum,[id,amount])=>sum+Math.max(0,amount-marketPaid(entries,purchase.id,id,'receber')),0);
+ const settledPeople=people.filter(([id,amount])=>id===purchase.pagadorPessoaId||marketPaid(entries,purchase.id,id,'receber')>=amount).length;
+ const payoutPending=purchase.pagadorPessoaId?Math.max(0,settlement.pagarCentavos-marketPaid(entries,purchase.id,purchase.pagadorPessoaId,'pagar')):0;
+ return {people:people.length,settledPeople,reimbursementPending,payoutPending,settled:reimbursementPending===0&&payoutPending===0};
+}

@@ -69,3 +69,12 @@ test('one personal percentage freely divides the total pool equally and leaves t
 test('new single-percentage records validate alongside unchanged legacy unequal distributions',async()=>{
  const {validateCoupleBudget}=await import('./couple-budget.ts');const a={id:'C',nome:'Casal',tipo:'casal' as const,conjunta:true,padrao:true,percentualPessoalCasal:6000,distribuicoesCasal:[{mes:'2026-10',totalCentavos:200000,comumCentavos:100000,pessoais:[40000,60000] as [number,number],percentuaisPessoais:[2000,3000] as [number,number],confirmadaEm:'2026-10-05'},{mes:'2026-11',totalCentavos:200000,comumCentavos:80000,pessoais:[60000,60000] as [number,number],percentualPessoal:6000,confirmadaEm:'2026-11-05'}]};validateCoupleBudget(a);assert.throws(()=>validateCoupleBudget({...a,percentualPessoalCasal:10001}));
 });
+
+test('market progress only settles confirmed personal reimbursements and separates payer repasses',async()=>{
+ const {marketProgress}=await import('./management.ts');const p=purchase();let result=marketProgress(p,[]);assert.equal(result.people,2);assert.equal(result.settledPeople,0);assert.equal(result.reimbursementPending,3000);assert.equal(result.settled,false);
+ const reimburse=(id:string,amount:number,status:'confirmado'|'previsto'='confirmado')=>entry({tipo:'receita',status,valorCentavos:amount,gestao:{tipo:'reembolsoMercado',pessoaId:id,compraId:'M'}});
+ result=marketProgress(p,[reimburse('Ana',2000),reimburse('Bia',500),reimburse('Bia',500,'previsto')]);assert.equal(result.settledPeople,1);assert.equal(result.reimbursementPending,500);assert.equal(result.settled,false);
+ result=marketProgress(p,[reimburse('Ana',2000),reimburse('Bia',1000)]);assert.equal(result.settled,true);assert.equal(result.settledPeople,2);
+ const personal=purchase('Ana');result=marketProgress(personal,[reimburse('Bia',1000)]);assert.equal(result.settledPeople,2);assert.equal(result.reimbursementPending,0);assert.equal(result.payoutPending,8000);assert.equal(result.settled,false);
+ result=marketProgress(personal,[reimburse('Bia',1000),entry({status:'confirmado',valorCentavos:8000,gestao:{tipo:'repasseMercado',pessoaId:'Ana',compraId:'M'}})]);assert.equal(result.settled,true);assert.equal(marketProgress({...p,itens:[]},[]).people,0);
+});

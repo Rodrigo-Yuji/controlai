@@ -87,3 +87,11 @@ Na Gestora, Divisão da renda, Orçamento semanal, Controle de limites e Reserva
 No computador, o cabeçalho com o mês permanece visível durante a rolagem. Na Gestora, as contribuições e o histórico de entradas/repasses ficam no primeiro bloco; Mercado e acertos vem em seguida, depois Outras entradas de pessoas e Fechamento mensal. Use **Adicionar pessoa** para abrir os campos; **Editar pessoa** abre a mesma janela com os valores atuais.
 
 Em Solo e Casal, o orçamento segue: Orçamento semanal, Controle de limites, Reserva financeira, Fechamento mensal e Divisão da renda. Nos três tipos de conta, editar uma categoria abre uma janela no ponto atual da página, com opções de salvar e cancelar.
+
+## Listas compactas e indicadores
+
+As compras de mercado ficam recolhidas, com resumo de data, total, pessoas acertadas e valor pendente de reembolso. O repasse ao pagador tem um indicador separado. Os itens do próprio pagador são acertados por abatimento do repasse, sem exigir que a pessoa reembolse a si mesma. Compras sem itens pessoais mostram essa condição.
+
+Os filtros Todas, Com pendências e Quitadas consideram os acertos pessoais e os repasses; não representam confirmação de pagamento da nota ao estabelecimento. Pendências aparecem primeiro, com 10 compras por vez e Carregar mais compras. Expandir uma compra mostra seus itens e ações de pagamento. O histórico de entradas/repasses começa recolhido. Editar e remover pessoa usam ícones com nomes acessíveis e dicas ao passar o mouse.
+
+No orçamento semanal, a referência diária divide o limite semanal pelos dias reais daquela semana, arredondando para baixo em centavos. Não é o saldo restante dividido pelos dias que faltam: os gastos e o restante da semana aparecem separadamente. O botão de informações explica esse cálculo e o ciclo do quinto dia útil.
