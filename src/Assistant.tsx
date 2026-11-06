@@ -9,7 +9,7 @@ import { commandDraft, detectColumns, draftError, fingerprint, MAX_ROWS, parseCs
 
 import { detectPlanLayout, inferSheetMonth, monthlyPlanDrafts, type PlanResult } from './monthly-plan';
 
-interface Props { conta: Conta; categorias: Categoria[]; registros: Lancamento[]; fechamentos: Fechamento[] }
+interface Props { mode:'import'|'voice'; conta: Conta; categorias: Categoria[]; registros: Lancamento[]; fechamentos: Fechamento[] }
 interface SpeechResult { isFinal: boolean; 0: { transcript: string } }
 interface Speech {
   lang: string; continuous: boolean; interimResults: boolean;
@@ -28,7 +28,8 @@ function excelCell(value: unknown): Cell {
   return value instanceof Date || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : null;
 }
 
-export default function Assistant({ conta, categorias, registros, fechamentos }: Props) {
+export default function Assistant({ mode, conta, categorias, registros, fechamentos }: Props) {
+  const [voiceOpen,setVoiceOpen]=useState(false);
   const [sheets, setSheets] = useState<{name: string; rows: Cell[][]}[]>([]);
   const [sheetIndex, setSheetIndex] = useState(0);
   const [columns, setColumns] = useState<Columns>(detectColumns([]));
@@ -200,10 +201,9 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
     finally { busy.current = false; setSaving(false); }
   }
 
-  return <div className="assistant">
-    <p className="muted">Importe uma planilha ou descreva um lançamento. A interpretação usa regras locais, sem IA paga. Revise os dados antes de confirmar na conta <strong>{conta.nome}</strong>.</p>
-    <section className="assistant-section panel" aria-labelledby="assistant-import-title">
-      <h3 id="assistant-import-title">Importar planilha</h3>
+  const content=<div className={`assistant assistant-${mode}`}>
+    <p className="muted">{mode==='import'?'Importe uma planilha.':'Diga ou descreva um lançamento.'} A interpretação usa regras locais, sem IA paga. Revise os dados antes de confirmar na conta <strong>{conta.nome}</strong>.</p>
+    {mode==='import'&&<section className="assistant-section panel" aria-label="Selecionar e revisar planilha">
       <fieldset disabled={loading || saving || listening} className="assistant-import-fields">
       <p className="muted">CSV ou Excel .xlsx, até 5 MB e {MAX_ROWS} lançamentos por aba. Aceita tabelas com cabeçalho na primeira linha e planos mensais com blocos de despesas e receitas. Os arquivos são lidos neste dispositivo.</p>
       <label className="assistant-file"><FileUp size={20}/>Selecionar planilha<input type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={readFile}/></label>
@@ -221,8 +221,8 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
         <button className="primary" type="button" onClick={reviewSheet}>Revisar planilha</button>
       </div>}
       </fieldset>
-    </section>
-    <section className="panel">
+    </section>}
+    {mode==='voice'&&<section className="panel">
       <h3>Comando por texto ou voz</h3>
       <p className="muted">Exemplo: “comprei almoço por 40 reais” ou “recebi salário de 2500 reais ontem”. Um lançamento por comando; sem data, usamos hoje. Valores por extenso simples também são aceitos.</p>
       <div className="fields"><label>Seu comando<textarea rows={3} value={command} disabled={saving || loading || listening} onChange={event => {setCommand(event.target.value); setDrafts([]);}} placeholder="Comprei almoço por 40 reais"/></label></div>
@@ -235,7 +235,7 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
       </div>
       {microphoneBlocked && <button type="button" className="secondary" onClick={() => {SpeechInput.openSettings().catch(() => setError('Abra Configurações → Aplicativos → ControlAI → Permissões → Microfone.'));}}>Abrir permissões do aplicativo</button>}
       {listening && !nativeSpeech && <p role="status">Ouvindo… diga uma receita ou despesa.</p>}
-    </section>
+    </section>}
     {error && <p className="error assistant-message" role="alert">{error}</p>}
     {message && <p className="success assistant-message" role="status">{message}</p>}
     {planReport && <section className="panel">
@@ -276,6 +276,8 @@ export default function Assistant({ conta, categorias, registros, fechamentos }:
         <button type="button" className="secondary" disabled={saving} onClick={() => setDrafts([])}>Descartar revisão</button>
       </fieldset>
     </section>}
-    <p className="muted">O assistente adiciona lançamentos; ele não restaura nem substitui o banco. Para um backup completo, use Ajustes.</p>
+    {mode==='import'&&<p className="muted">A importação adiciona lançamentos; ela não restaura nem substitui o banco. Para um backup completo, use Backup e restauração.</p>}
   </div>;
+  function closeVoice(){voiceRequest.current++;if(speech.current){speech.current.onresult=null;speech.current.onerror=null;speech.current.onend=null;speech.current.abort();speech.current=null;}setListening(false);setVoiceOpen(false);setCommand('');setDrafts([]);setError('');setMessage('');setMicrophoneBlocked(false);}
+  return mode==='import'?content:<><button type="button" className="floating voice-floating" aria-label="Registrar lançamento por voz" title="Registrar lançamento por voz" onClick={()=>{setVoiceOpen(true);void startVoice();}}><Mic size={25}/></button>{voiceOpen&&<div className="overlay voice-overlay"><section className="dialog voice-dialog" role="dialog" aria-modal="true" aria-label="Lançamento por voz"><div className="sectiontitle"><h2>Lançamento por voz</h2><button type="button" className="textbutton" disabled={saving} onClick={closeVoice}>Fechar</button></div>{content}</section></div>}</>;
 }

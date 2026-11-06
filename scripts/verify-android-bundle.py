@@ -16,6 +16,6 @@ with zipfile.ZipFile(apk) as archive:
     if any(name in archive.namelist() for name in ['assets/public/sw.js', 'assets/public/registerSW.js']):
         raise SystemExit('FALHA: service worker web não deve ser empacotado no APK nativo.')
     scripts = b''.join(archive.read(name) for name in archive.namelist() if name.startswith('assets/public/assets/') and name.endswith('.js'))
-    if b'ControlAI 1.19' not in scripts:
+    if b'ControlAI 1.20' not in scripts:
         raise SystemExit('FALHA: versão visível da interface não corresponde à versão atual.')
-print(f'OK: {len(files)} arquivos web do APK são idênticos ao build atual; interface ControlAI 1.19 confirmada.')
+print(f'OK: {len(files)} arquivos web do APK são idênticos ao build atual; interface ControlAI 1.20 confirmada.')
