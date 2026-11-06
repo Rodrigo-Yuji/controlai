@@ -8,8 +8,8 @@ export function isMonthlyCommitment(entry: Lancamento): boolean {
 
 // Entries include the month's projections; the caller suppresses projections
 // already represented by a recorded recurrence, including paid occurrences.
-export function monthlyFixedBudget(entries: Lancamento[], baseCentavos: number) {
-  const totalCentavos = entries.filter(isMonthlyCommitment).reduce((sum, entry) => sum + entry.valorCentavos, 0);
+export function monthlyFixedBudget(entries: Lancamento[], baseCentavos: number, month?:string) {
+  const totalCentavos = entries.filter(entry=>isMonthlyCommitment(entry)&&(!month||(entry.parcial?.dataPrevista??entry.data).slice(0,7)===month)).reduce((sum, entry) => sum + entry.valorCentavos, 0);
   const percentage = baseCentavos > 0 ? Math.round(totalCentavos / baseCentavos * 10000) / 100 : null;
   return { totalCentavos, percentage };
 }

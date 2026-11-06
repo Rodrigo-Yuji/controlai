@@ -27,7 +27,8 @@ export function createWebDatabase(): Database {
   return {
     ...tables, kind:'indexeddb', tables:Object.values(tables),
     initialize: async () => { await source.open(); },
-    transaction: (refs, work) => source.transaction('rw', refs.map(ref => source.table(ref.name)), () => work(tables)),
+    // Native async scope preserves Dexie context across nested transaction helpers.
+    transaction: (refs, work) => source.transaction('rw', refs.map(ref => source.table(ref.name)), async () => await work(tables)),
     snapshot:()=>source.transaction('r',TABLE_NAMES.map(name=>source.table(name)),()=>readTables(tables)),
     getLocalState:async key=>(await source.table('localstate').get(key))?.value,
     setLocalState:async(key,value)=>{await source.table('localstate').put({key,value});},

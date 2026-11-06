@@ -1,3 +1,4 @@
+import {validatePartialPayments} from './partial-payments.ts';
 import {validateCoupleBudget} from './couple-budget.ts';
 import type {CompraMercado,Conta,Lancamento,PessoaGestora} from './db.ts';
 export function contributionTarget(person:PessoaGestora,month:string){
@@ -27,6 +28,7 @@ export function validateManagement(account:Conta){
 }
 
 export function validateFinancialReferences(accounts:Conta[],entries:Lancamento[],recurrences:import('./db.ts').Recorrencia[]){
+ validatePartialPayments(entries);
  const byId=new Map(accounts.map(a=>[a.id,a]));const originals=new Set<string>();
  for(const entry of [...entries,...recurrences]){
   if(entry.cartaoId&&!byId.get(entry.contaId??'')?.cartoes?.some(c=>c.id===entry.cartaoId))throw Error('Lançamento com cartão de outra conta ou inexistente.');
