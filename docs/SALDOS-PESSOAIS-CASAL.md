@@ -13,3 +13,11 @@ Os saldos pessoais acumulam entre meses e anos. Transferências parciais registr
 Distribuições antigas ficam preservadas, inclusive as que tinham valores diferentes por titular. Um ajuste explícito nessas distribuições passa a usar a nova regra igualitária. O saldo registrado da conta conjunta considera receitas e despesas confirmadas, reserva e transferências; o disponível comum desconta ainda os saldos pessoais pendentes. Não há consulta automática ao banco.
 
 A porcentagem, liberações e transferências integram SQLite, backup e sincronização. Não são necessárias novas tabelas ou SQL no Supabase. Atualize o APK e o site para utilizar o mesmo controle.
+
+## Visualização dos valores (1.16)
+
+Na tela inicial, Dinheiro comum e pessoal mostra três cartões: uso comum previsto no mês, saldo registrado acumulado e disponível para uso comum. A indicação de valores aguardando transferência foi removida dessa tela; o cálculo da disponibilidade continua descontando os saldos pessoais liberados.
+
+Nos relatórios, Transferências e saldos pessoais fica no fim. Há totais de transferências e valores a transferir, além de um cartão por titular com o destinado acumulado, transferido, pendente e uma barra de progresso. Valores transferidos não representam o saldo bancário pessoal atual, pois o uso posterior não é acompanhado pelo aplicativo.
+
+No celular, as ações da conta ficam ao lado do nome: paleta, selecionar (círculo marcado para a conta atual), editar e excluir. Os nomes acessíveis e as dicas dos ícones identificam cada ação.
