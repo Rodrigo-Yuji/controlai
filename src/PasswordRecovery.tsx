@@ -1,9 +1,8 @@
 import PasswordInput from './PasswordInput';
-import {readOwnerSession,saveOwnerSession} from './owner-session';
+import {readLogin,clearLogin} from './workspace-session';
 import {useEffect,useState,type ReactNode} from 'react';
-import {db} from './db';
 import {defaultSyncConfig} from './sync/config';
-import {SupabaseClient,validateConfig,type Session,type SyncConfig} from './sync/client';
+import {SupabaseClient,validateConfig} from './sync/client';
 import {consumeAuthReturn} from './sync/recovery';
 const initialReturn=typeof window==='undefined'?null:consumeAuthReturn();
 
@@ -15,15 +14,15 @@ export default function PasswordRecovery({children}:{children:(openLogin:boolean
  useEffect(()=>{
   document.documentElement.dataset.theme=localStorage.getItem('controlai-tema')==='escuro'?'escuro':'claro';
   if(!initialReturn)return;let mounted=true;
-  (async()=>{const config=validateConfig((await db.getLocalState('sync.config') as SyncConfig)||defaultSyncConfig);const api=new SupabaseClient(config,null,async()=>{});if(mounted)setClient(api);
+  (async()=>{const config=validateConfig(readLogin()?.config||defaultSyncConfig);const api=new SupabaseClient(config,null,async()=>{});if(mounted)setClient(api);
    if(initialReturn.kind==='recovery'){try{const user=await api.recoveryUser(initialReturn.accessToken);if(mounted){setVerified(user);setEmail(user.email??'');}}catch(reason){if(mounted)setError(reason instanceof Error&&'code' in reason&&reason.code==='NETWORK'?reason.message:'Link inválido ou expirado. Solicite outro e-mail.');}}
   })().catch(()=>{if(mounted)setError('Não foi possível verificar o link. Confira a conexão e tente novamente.');}).finally(()=>{if(mounted)setBusy(false);});
   return()=>{mounted=false;};
  },[]);
  async function save(e:React.FormEvent){e.preventDefault();if(busy||!client||!verified||initialReturn?.kind!=='recovery')return;setError('');if(password!==confirmation){setError('As senhas não coincidem.');return;}setBusy(true);
   try{await client.updatePassword(initialReturn.accessToken,password);
-   const stored=await readOwnerSession(db) as {session?:Session}|null;
-   if(stored?.session?.user.id===verified.id)await saveOwnerSession(db,null);
+   const stored=readLogin();
+   if(stored?.session.user.id===verified.id)clearLogin();
    setPassword('');setConfirmation('');setDone(true);setMessage('Senha atualizada. Entre novamente com seu e-mail e a nova senha. Seus dados financeiros foram preservados.');
   }catch(reason){setError(reason instanceof Error?reason.message:'Não foi possível atualizar a senha.');}finally{setBusy(false);}
  }

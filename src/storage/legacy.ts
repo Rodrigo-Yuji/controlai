@@ -9,7 +9,7 @@ export class LegacyDatabase extends Dexie {
   categorias!: Table<Categoria, number>;
   recorrencias!: Table<Recorrencia, number>;
   salarios!: Table<Salario, string>;
-  constructor() { super('ControlAI');
+  constructor(name='ControlAI') { super(name);
     this.version(1).stores({ categorias: '++id, nome, tipo', lancamentos: '++id, tipo, data, categoriaId, natureza, status', orcamentos: '++id' });
     this.version(2).stores({ categorias: null, orcamentos: null, lancamentos: '++id, data, tipo, natureza, categoria, status', configuracoes: 'id', reservas: '++id, data' }).upgrade(async tx => {
       const tabela = tx.table('lancamentos');

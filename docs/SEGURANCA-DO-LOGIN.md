@@ -32,8 +32,6 @@ Os testes PostgreSQL incluem tentativa anônima, confirmação incorreta, senha 
 
 Os botões Sincronizar agora/Sair do login ficam em um grupo. Os backups ficam em outro, separados por margem e linha divisória. A segurança do login tem uma área recolhível própria, abaixo desses grupos.
 
-## Sugestão para o uso pessoal do convidado
+## Uso pessoal e compartilhamento
 
-Uma mesma pessoa deve poder alternar entre **Meu sistema** (suas próprias contas, com edição) e **Contas compartilhadas** (somente leitura). O convite seria um acesso adicional do mesmo login.
-
-O servidor já separa os cofres pelo usuário. Antes de adicionar essa alternância no app, é necessário separar também SQLite/IndexedDB por identidade e migrar com segurança o banco offline existente. Um simples link para o principal não oferece essa separação no mesmo dispositivo. A alternância não foi incluída nesta versão: é a proposta para a próxima alteração, conforme a pergunta do usuário.
+A partir da versão 1.27, um mesmo login alterna entre **Meu sistema** e **Contas compartilhadas** em Ajustes → Seu espaço. Consulte [ESPACOS.md](ESPACOS.md) para os limites de acesso e a migração dos bancos locais.

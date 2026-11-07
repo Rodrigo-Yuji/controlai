@@ -21,8 +21,8 @@ function table<T, K>(source: Table<T, K>): StorageTable<T, K> {
     filter: predicate => collection(source.filter(predicate)), toCollection: () => collection(source.toCollection()),
   };
 }
-export function createWebDatabase(): Database {
-  const source = new LegacyDatabase();
+export function createWebDatabase(name='ControlAI'): Database {
+  const source = new LegacyDatabase(name);
   const tables = Object.fromEntries(TABLE_NAMES.map(name => [name, table(source.table(name))])) as Tables;
   return {
     ...tables, kind:'indexeddb', tables:Object.values(tables),

@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 const authHash=new URLSearchParams(window.location.hash.slice(1));
 const confirmation=['signup','email_change','invite'].includes(authHash.get('type')||'')||authHash.get('error_code')==='otp_expired';
-const Root=React.lazy(()=>confirmation?import('./AuthConfirmation'):new URLSearchParams(window.location.search).get('consulta')==='1'?import('./ViewerApp'):import('./Bootstrap'));
+const Root=React.lazy(()=>confirmation?import('./AuthConfirmation'):authHash.get('type')==='recovery'||authHash.has('error')?import('./RecoveryPage'):import('./WorkspaceRoot'));
 import { Capacitor } from '@capacitor/core';
 import './style.css';
 import { registerSW } from 'virtual:pwa-register';
