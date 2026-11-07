@@ -20,6 +20,7 @@ export function marketPaid(entries:Lancamento[],purchaseId:string,personId:strin
 }
 export function validateManagement(account:Conta){
  validateCoupleBudget(account);
+ if(account.lembretes){const c=account.lembretes;if(typeof c.ativo!=='boolean'||![c.antecedenciaDias,c.hora,c.contribuicaoDia,c.reembolsoDias].every(Number.isInteger)||c.antecedenciaDias<0||c.antecedenciaDias>30||c.hora<0||c.hora>23||c.contribuicaoDia<1||c.contribuicaoDia>31||c.reembolsoDias<0||c.reembolsoDias>60)throw Error('Preferências de lembretes inválidas.');}
  if(account.cor!==undefined&&(typeof account.cor!=='string'||!/^#[\da-f]{6}$/i.test(account.cor)))throw Error('Cor da conta inválida.');
  const ids=new Set<string>();
  for(const person of account.pessoas??[]){if(!person.id||ids.has(person.id)||!person.nome.trim())throw Error('Pessoa gestora inválida.');ids.add(person.id);for(const target of person.contribuicoes)if(!Number.isSafeInteger(target.valorCentavos)||target.valorCentavos<0)throw Error('Contribuição mensal inválida.');}

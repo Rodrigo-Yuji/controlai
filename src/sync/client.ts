@@ -16,7 +16,7 @@ export class SyncError extends Error {code:string;constructor(message:string,cod
 export class SupabaseClient {
  readonly config:SyncConfig;private session:Session|null;private saveSession:(session:Session)=>Promise<void>;
  constructor(config:SyncConfig,session:Session|null,saveSession:(session:Session)=>Promise<void>){this.config=config;this.session=session;this.saveSession=saveSession;}
- private async request(path:string,body:unknown,token?:string,method?:'GET'|'POST'|'PUT'):Promise<unknown>{
+ private async request(path:string,body:unknown,token?:string,method?:'GET'|'POST'|'PUT'|'DELETE'):Promise<unknown>{
   const abort=new AbortController();const timer=setTimeout(()=>abort.abort(),15000);
   try {
    const response=await fetch(this.config.url+path,{method:method??(body===undefined?'GET':'POST'),headers:{apikey:this.config.key,'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:body===undefined?undefined:JSON.stringify(body),signal:abort.signal,credentials:'omit'});
@@ -73,8 +73,13 @@ export class SupabaseClient {
  async setAccountViewer(accountId:string,email:string,allow:boolean){await this.request('/rest/v1/rpc/controlai_set_account_viewer',{p_account:accountId,p_email:email,p_allow:allow},await this.token());}
  async sharedAccounts(){return await this.request('/rest/v1/rpc/controlai_shared_accounts',{},await this.token()) as {owner:string;account_id:string;nome:string;tipo:string}[];}
  async sharedAccount(owner:string,accountId:string){return await this.request('/rest/v1/rpc/controlai_shared_account',{p_owner:owner,p_account:accountId},await this.token()) as {revision:number;updated_at:string;snapshot:unknown};}
- async deleteMyAccount(confirmation:string){if(confirmation!=='EXCLUIR')throw Error('Digite EXCLUIR para confirmar.');await this.request('/rest/v1/rpc/controlai_delete_my_account',{p_confirmation:confirmation},await this.token());}
+ async deleteMyAccount(confirmation:string){if(confirmation!=='EXCLUIR')throw Error('Digite EXCLUIR para confirmar.');const token=await this.token();let files:unknown;try{files=await this.request('/rest/v1/rpc/controlai_my_receipts',{},token);}catch(e){if(!(e instanceof SyncError&&e.code==='SETUP'))throw e;}if(Array.isArray(files)&&files.length)for(let i=0;i<files.length;i+=100)await this.request('/storage/v1/object/controlai-comprovantes',{prefixes:files.slice(i,i+100)},token,'DELETE');await this.request('/rest/v1/rpc/controlai_delete_my_account',{p_confirmation:confirmation},token);}
  async logout(scope:'local'|'global'='local'){await this.request('/auth/v1/logout?scope='+scope,{},await this.token());this.session=null;}
+ async submitRequest(owner:string,account:string,payload:unknown){return await this.request('/rest/v1/rpc/controlai_submit_request',{p_owner:owner,p_account:account,p_payload:payload},await this.token()) as string;}
+ async listRequests(owner:string,account:string){return await this.request('/rest/v1/rpc/controlai_list_requests',{p_owner:owner,p_account:account},await this.token()) as import('../requests').EntryRequest[];}
+ async resolveRequest(id:string,status:'aprovado'|'recusado',category:string,revision:number,reason=''){return await this.request('/rest/v1/rpc/controlai_resolve_request',{p_id:id,p_status:status,p_category:category,p_revision:revision,p_reason:reason},await this.token()) as number|null;}
+ async uploadReceipt(id:string,file:File){if(file.size>2097152||!['image/jpeg','image/png','image/webp','application/pdf'].includes(file.type))throw Error('Use JPG, PNG, WebP ou PDF de até 2 MB.');const token=await this.token(),path=this.session!.user.id+'/'+id+'/comprovante';const response=await fetch(this.config.url+'/storage/v1/object/controlai-comprovantes/'+path,{method:'POST',headers:{apikey:this.config.key,Authorization:'Bearer '+token,'Content-Type':file.type},body:file,credentials:'omit'});const uploadError=!response.ok?await response.json().catch(()=>null):null;if(!response.ok&&response.status!==409&&uploadError?.error!=='Duplicate')throw Error('A solicitação foi enviada, mas o comprovante não pôde ser anexado. Tente anexá-lo novamente.');await this.request('/rest/v1/rpc/controlai_attach_receipt',{p_id:id,p_path:path},token);}
+ async receiptUrl(path:string){const data=await this.request('/storage/v1/object/sign/controlai-comprovantes/'+path,{expiresIn:60},await this.token()) as {signedURL:string};return this.config.url+'/storage/v1'+data.signedURL;}
  async revision():Promise<number>{
   const data=await this.request('/rest/v1/controlai_vaults?select=revision',undefined,await this.token()) as {revision:number}[];
   if(!Array.isArray(data)||data.length>1)throw Error('Resposta de sincronização inválida.');

@@ -1,3 +1,5 @@
+import {useLiveQuery} from './storage/useLiveQuery';
+import {changesBetween} from './activity';
 import {startLogin,goToSpace,goToLogin,loginIdentity} from './workspace-session';
 import {personalContext,LEGACY_OWNER} from './workspace-context';
 import AccountSecurity from './AccountSecurity';
@@ -18,7 +20,8 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
  const [remember,setRemember]=useState(ownerAutoLogin);
  const [loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [result,setResult]=useState<SyncResult>({kind:'choose',message:'Conecte a mesma conta de login no celular e no computador.'});
- useEffect(()=>{onStatus(!session?'':busy?'Sincronizando…':error?'Sincronização pendente · abrir Ajustes':result.kind==='conflict'?'Conflito de sincronização · abrir Ajustes':result.kind==='choose'?'Conectar dados · abrir Ajustes':result.kind==='retry'?'Sincronização pendente':'Sincronizado');},[onStatus,session,busy,error,result.kind]);
+ const syncInfo=useLiveQuery(async()=>{if(!session||!config)return null;const owner=config.url+':'+session.user.id;const [binding,last,snapshot]=await Promise.all([db.getLocalState('sync.binding'),db.getLocalState('sync.lastSuccess'),db.snapshot()]);const b=binding as {owner:string;base:Snapshot}|null,l=last as {owner:string;at:string}|null;return {pending:b?.owner===owner?changesBetween(b.base,snapshot).length:null,last:l?.owner===owner?l.at:null};},[session?.user.id,config?.url,result]);
+ useEffect(()=>{onStatus(!session?'':busy?'Sincronizando…':error?'Sincronização pendente · abrir Ajustes':result.kind==='conflict'?'Conflito de sincronização · abrir Ajustes':result.kind==='choose'?'Conectar dados · abrir Ajustes':result.kind==='retry'?'Sincronização pendente':syncInfo?.pending?`${syncInfo.pending} alterações aguardando envio`:'Sincronizado');},[onStatus,session,busy,error,result.kind,syncInfo]);
  useEffect(()=>{const refresh=(event:Event)=>{const done=(event as CustomEvent<{done:()=>void}>).detail.done;run.current().finally(done);};window.addEventListener('controlai-refresh',refresh);return()=>window.removeEventListener('controlai-refresh',refresh);},[]);
  const engine=useRef<SyncEngine|null>(null),working=useRef(false),paused=useRef(true),generation=useRef(0);
  useEffect(()=>{let active=true;Promise.all([db.getLocalState('sync.config'),readOwnerSession(db)]).then(([c,s])=>{
@@ -85,7 +88,7 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
  <div className="sync-actions"><button type="button" className="secondary" onClick={()=>{void choose('local');}}>Usar dados deste dispositivo</button><button type="button" className="secondary" onClick={()=>{void choose('cloud');}}>Usar dados da nuvem</button></div></div>}
  <div className="sync-actions sync-backup-actions"><button type="button" className="secondary" onClick={()=>{void downloadRecovery('local');}}>Backup local de recuperação</button><button type="button" className="secondary" onClick={()=>{void downloadRecovery('cloud');}}>Backup remoto de recuperação</button></div></>}
  </fieldset>
- {session&&config&&<AccountSecurity session={session} config={config} owner disabled={busy} protect={protectSecurity} onComplete={finishSecurity}/>}
+ {session&&<div className="sync-details"><p>Última sincronização concluída: <strong>{syncInfo?.last?new Date(syncInfo.last).toLocaleString('pt-BR'):'Ainda não concluída neste dispositivo'}</strong></p><p>Alterações aguardando envio: <strong>{syncInfo?.pending??'Conecte a origem dos dados'}</strong></p></div>}{session&&config&&<AccountSecurity session={session} config={config} owner disabled={busy} protect={protectSecurity} onComplete={finishSecurity}/>}
  <p className="muted sync-status-message" role="status">{busy?'Sincronizando…':result.message}</p>{error&&<p className="error" role="alert">{error}</p>}
  </section>;
 }

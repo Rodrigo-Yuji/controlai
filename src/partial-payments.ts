@@ -9,9 +9,9 @@ export function validatePartialPayments(entries:Lancamento[]){
  for(const rows of groups.values()){const sources=rows.filter(e=>e.parcial!.papel==='saldo');if(sources.length!==1)throw Error('Pagamento parcial sem previsão de origem única.');const source=sources[0];if(!Number.isSafeInteger(rows.reduce((sum,e)=>sum+e.valorCentavos,0)))throw Error('Total do grupo parcial inválido.');if(rows.some(e=>e.tipo!==source.tipo||e.parcial!.dataPrevista!==source.parcial!.dataPrevista||e.recorrenciaId!==source.recorrenciaId||e.grupoRecorrencia!==source.grupoRecorrencia||e.parcela?.grupo!==source.parcela?.grupo||e.parcela?.numero!==source.parcela?.numero||e.cartaoId!==source.cartaoId||e.faturaMes!==source.faturaMes))throw Error('Referências do pagamento parcial inconsistentes.');}
 }
 async function guard(tx:Tables,accountId:string,e:Lancamento,date?:string){await ensureOpenMonth(tx,accountId,e.data);if(e.parcial)await ensureOpenMonth(tx,accountId,e.parcial.dataPrevista);if(date)await ensureOpenMonth(tx,accountId,date);}
-export async function recordPartialPayment(db:Database,accountId:string,target:Lancamento,amount:number,date:string){
+export async function recordPartialPayment(db:Database,accountId:string,target:Lancamento,amount:number,date:string){return db.transaction([db.contas,db.lancamentos,db.recorrencias,db.fechamentos],tx=>recordPartialPaymentIn(tx,accountId,target,amount,date));}
+export async function recordPartialPaymentIn(tx:Tables,accountId:string,target:Lancamento,amount:number,date:string){
  if(!Number.isSafeInteger(amount)||amount<=0||!validDate(date))throw Error('Informe valor e data válidos.');
- return db.transaction([db.contas,db.lancamentos,db.recorrencias,db.fechamentos],async tx=>{
   const account=await tx.contas.get(accountId);if(!account)throw Error('Conta não encontrada.');const entries=await tx.lancamentos.where('contaId').equals(accountId).toArray();let source:Lancamento|undefined;
   if((target.id??0)<0){source=projectRecurrences(target.data.slice(0,7),accountId,await tx.recorrencias.where('contaId').equals(accountId).toArray(),entries).find(e=>e.id===target.id&&e.data===target.data);if(source&&account.tipo==='gestora')source={...source,cartaoId:undefined,faturaMes:undefined};}
   else source=entries.find(e=>e.id===target.id);
@@ -28,7 +28,6 @@ export async function recordPartialPayment(db:Database,accountId:string,target:L
   await tx.lancamentos.update(sourceId,{...base,valorCentavos:source.valorCentavos-amount});
   await tx.lancamentos.add({...base,valorCentavos:amount,data:date,status:'confirmado',parcial:{...metadata,papel:'pagamento'}});
   return {remaining:source.valorCentavos-amount};
- });
 }
 export async function undoPartialPayment(db:Database,accountId:string,id:number){
  await db.transaction([db.lancamentos,db.fechamentos],async tx=>{

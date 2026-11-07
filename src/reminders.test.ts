@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {reminderPlan} from './reminders.ts';
+import type {Snapshot} from './sync/snapshot.ts';
+test('reminders include this month and next month, group same-day notices and ignore disabled accounts',()=>{const snapshot:Snapshot={contas:[{id:'A',nome:'Casa',conjunta:false,padrao:true,tipo:'gestora',lembretes:{ativo:true,antecedenciaDias:1,hora:9,contribuicaoDia:5,reembolsoDias:3},pessoas:[{id:'P',nome:'Pessoa',inicioMes:'2026-01',contribuicoes:[{desde:'2026-01',valorCentavos:10000}]}]}],lancamentos:[],reservas:[],recorrencias:[],salarios:[],categorias:[],configuracoes:[],fechamentos:[]};let plan=reminderPlan(snapshot,'2026-11-07');assert.deepEqual(plan.map(p=>p.date),['2026-11-07','2026-12-04']);snapshot.contas[0].lembretes!.ativo=false;plan=reminderPlan(snapshot,'2026-11-07');assert.equal(plan.length,0);});

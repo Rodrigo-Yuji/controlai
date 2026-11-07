@@ -1,0 +1,7 @@
+import {useState} from 'react';
+import RequestsPanel from './RequestsPanel';
+import {db,type Conta,type Categoria} from './db';
+import {readLogin,refreshLogin} from './workspace-session';
+import {SupabaseClient} from './sync/client';
+import {snapshotKey,validateSnapshot} from './sync/snapshot';
+export default function OwnerRequests({account,categories}:{account:Conta;categories:Categoria[]}){const login=readLogin();const [client]=useState(()=>{const s=readLogin();return s?new SupabaseClient(s.config,s.session,async next=>refreshLogin(s.config,next,s.epoch)):null;});return <RequestsPanel client={client} owner={login?.session.user.id??''} account={account.id} categories={categories} approve={async(request,category)=>{if(!client||!login)throw Error('Entre novamente.');const local=await db.snapshot(),cloud=await client.read();if(!cloud||snapshotKey(local)!==snapshotKey(validateSnapshot(cloud.snapshot)))throw Error('Há alterações aguardando sincronização. Sincronize antes de aprovar para preservar os dados.');await client.resolveRequest(request.id,'aprovado',category,cloud.revision);const next=await client.read();if(!next)throw Error('Aprovado, mas a consulta da nova cópia falhou. Sincronize para atualizar.');await db.applySnapshot(snapshotKey(local),validateSnapshot(next.snapshot),'sync.binding',{owner:login.config.url+':'+login.session.user.id,revision:next.revision,base:next.snapshot});}}/>;}
