@@ -1,3 +1,5 @@
+import AccountSecurity from './AccountSecurity';
+import {readViewerSession,saveViewerSession,viewerChoiceKey} from './viewer-session';
 import PasswordInput from './PasswordInput';
 import {readOwnerSession,saveOwnerSession,ownerAutoLogin,setOwnerAutoLogin} from './owner-session';
 import {useEffect,useRef,useState} from 'react';
@@ -59,6 +61,8 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
   const snapshot=side==='local'?recovery.local:recovery.cloud?.snapshot;if(!snapshot)throw Error('Não há cópia da nuvem neste arquivo de recuperação.');
   await exportBackupFile(JSON.stringify(backupPayload(snapshot),null,2),`controlai-recuperacao-${side}.json`);
  });}
+ async function protectSecurity(work:()=>Promise<void>){if(working.current)throw Error('Aguarde a sincronização terminar e tente novamente.');const wasPaused=paused.current,current=generation.current;paused.current=true;working.current=true;setBusy(true);try{await work();}finally{working.current=false;setBusy(false);if(generation.current===current)paused.current=wasPaused;}}
+ async function finishSecurity(action:'password'|'delete'){if(!session||!config)return;const user=session.user.id,owner=config.url+':'+user;generation.current++;paused.current=true;engine.current=null;let cleanupFailed=false;try{await saveOwnerSession(db,null);if(action==='delete'){const binding=await db.getLocalState('sync.binding') as {owner?:string}|null;if(binding?.owner===owner)await db.setLocalState('sync.binding',null);const recovery=await db.getLocalState('sync.recovery') as {owner?:string}|null;if(recovery?.owner===owner)await db.setLocalState('sync.recovery',null);localStorage.removeItem(viewerChoiceKey(user));}if(readViewerSession()?.user.id===user)saveViewerSession(null);}catch{cleanupFailed=true;}finally{setSession(null);setResult({kind:'choose',message:(action==='delete'?'Login e dados da nuvem excluídos. Os dados financeiros offline foram mantidos.':'Senha alterada. Entre novamente com a nova senha.')+(cleanupFailed?' A saída local não terminou; feche o aplicativo antes de entrar novamente.':'')});}}
  if(!loaded)return null;
  return <section className="panel sync-panel"><h3>Sincronização entre dispositivos</h3>
  <p><a href="?consulta=1">Entrar em contas compartilhadas · somente leitura</a></p><p className="muted">Use o mesmo projeto e login no celular e computador. O SQLite continua no Android; as alterações sincronizam quando há internet. A nuvem guarda uma cópia dos dados de todas as contas financeiras deste dispositivo.</p>
@@ -73,12 +77,13 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
  <label>Senha<PasswordInput autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)}/></label>
  <label className="check"><input type="checkbox" checked={remember} onChange={e=>{setRemember(e.target.checked);setOwnerAutoLogin(e.target.checked);}}/>Entrar automaticamente neste dispositivo</label><div className="sync-actions"><button className="primary">Entrar para sincronizar</button><button type="button" className="secondary" onClick={()=>{void authenticate(true);}}>Criar login</button></div><button type="button" className="textbutton" onClick={()=>void action(async()=>{if(!config)throw Error('Configure o projeto primeiro.');await new SupabaseClient(config,null,async()=>{}).resendConfirmation(email.trim());setResult({kind:'choose',message:'Se o e-mail aguarda confirmação, um novo link será enviado.'});})}>Reenviar confirmação do e-mail</button><button type="button" className="textbutton recovery-action" onClick={()=>{void recoverPassword();}}>Esqueci minha senha</button></form>}</>}
  {session&&<><p>Conectado como <strong>{session.user.email||email}</strong></p>
- <div className="sync-actions"><button type="button" className="primary" onClick={()=>{paused.current=false;void run.current();}}>Sincronizar agora</button>
+ <div className="sync-actions sync-primary-actions"><button type="button" className="primary" onClick={()=>{paused.current=false;void run.current();}}>Sincronizar agora</button>
  <button type="button" className="secondary" onClick={()=>{void action(async()=>{generation.current++;paused.current=true;await saveOwnerSession(db,null);setSession(null);setResult({kind:'choose',message:'Desconectado. Os dados locais foram mantidos.'});});}}>Sair do login</button></div>
  {(result.kind==='choose'||result.kind==='conflict'||Boolean(error))&&<div className="sync-choice"><p className="muted">Na primeira conexão, envie os dados do APK. Depois, no computador, escolha usar a cópia da nuvem. Se houver alterações nos dois lados, exporte os backups antes de escolher; a escolha mantém uma cópia completa e não mescla os lançamentos.</p>
  <div className="sync-actions"><button type="button" className="secondary" onClick={()=>{void choose('local');}}>Usar dados deste dispositivo</button><button type="button" className="secondary" onClick={()=>{void choose('cloud');}}>Usar dados da nuvem</button></div></div>}
- <div className="sync-actions"><button type="button" className="textbutton" onClick={()=>{void downloadRecovery('local');}}>Backup local de recuperação</button><button type="button" className="textbutton" onClick={()=>{void downloadRecovery('cloud');}}>Backup remoto de recuperação</button></div></>}
+ <div className="sync-actions sync-backup-actions"><button type="button" className="secondary" onClick={()=>{void downloadRecovery('local');}}>Backup local de recuperação</button><button type="button" className="secondary" onClick={()=>{void downloadRecovery('cloud');}}>Backup remoto de recuperação</button></div></>}
  </fieldset>
- <p className="muted" role="status">{busy?'Sincronizando…':result.message}</p>{error&&<p className="error" role="alert">{error}</p>}
+ {session&&config&&<AccountSecurity session={session} config={config} owner disabled={busy} protect={protectSecurity} onComplete={finishSecurity}/>}
+ <p className="muted sync-status-message" role="status">{busy?'Sincronizando…':result.message}</p>{error&&<p className="error" role="alert">{error}</p>}
  </section>;
 }

@@ -23,8 +23,11 @@ export class SupabaseClient {
    const data=await response.json().catch(()=>null);
    if(!response.ok){
     if(response.status===429)throw new SyncError('Limite de envios ou tentativas atingido. Tente novamente mais tarde.','RATE_LIMIT');
+    if(['reauthentication_needed','reauthentication_not_valid'].includes(data?.code))throw new SyncError('O projeto exige confirmação adicional. Use Esqueci minha senha para alterar pelo e-mail.','REAUTH');
     if(data?.code==='weak_password')throw new SyncError('A senha não atende às regras do projeto. Use uma senha mais forte com pelo menos 8 caracteres.','PASSWORD');
     if(data?.code==='40001'||String(data?.message).includes('SYNC_CONFLICT'))throw new SyncError('Outro dispositivo alterou a cópia. Sincronize novamente.','CONFLICT');
+    if(data?.code==='same_password')throw new SyncError('A nova senha precisa ser diferente da senha atual.','PASSWORD');
+    if(data?.code==='42501'&&String(data?.message).startsWith('Confirme'))throw new SyncError(String(data.message),'REAUTH');
     if(response.status===403||data?.code==='42501')throw new SyncError('Acesso não autorizado ou revogado.','FORBIDDEN');
     if(response.status===401)throw new SyncError('Entre novamente para continuar a sincronização.','AUTH');
     if(response.status===404||data?.code==='PGRST202'||data?.code==='42P01')throw new SyncError('Configure o banco com o arquivo supabase/setup.sql antes de sincronizar.','SETUP');
@@ -70,7 +73,8 @@ export class SupabaseClient {
  async setAccountViewer(accountId:string,email:string,allow:boolean){await this.request('/rest/v1/rpc/controlai_set_account_viewer',{p_account:accountId,p_email:email,p_allow:allow},await this.token());}
  async sharedAccounts(){return await this.request('/rest/v1/rpc/controlai_shared_accounts',{},await this.token()) as {owner:string;account_id:string;nome:string;tipo:string}[];}
  async sharedAccount(owner:string,accountId:string){return await this.request('/rest/v1/rpc/controlai_shared_account',{p_owner:owner,p_account:accountId},await this.token()) as {revision:number;updated_at:string;snapshot:unknown};}
- async logout(){await this.request('/auth/v1/logout?scope=local',{},await this.token());this.session=null;}
+ async deleteMyAccount(confirmation:string){if(confirmation!=='EXCLUIR')throw Error('Digite EXCLUIR para confirmar.');await this.request('/rest/v1/rpc/controlai_delete_my_account',{p_confirmation:confirmation},await this.token());}
+ async logout(scope:'local'|'global'='local'){await this.request('/auth/v1/logout?scope='+scope,{},await this.token());this.session=null;}
  async revision():Promise<number>{
   const data=await this.request('/rest/v1/controlai_vaults?select=revision',undefined,await this.token()) as {revision:number}[];
   if(!Array.isArray(data)||data.length>1)throw Error('Resposta de sincronização inválida.');
