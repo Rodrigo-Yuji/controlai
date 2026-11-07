@@ -1,0 +1,7 @@
+import {useEffect,useState} from 'react';
+import {SupabaseClient} from './sync/client';
+import {defaultSyncConfig} from './sync/config';
+import {APP_SITE_URL} from './sync/recovery';
+const returned=new URLSearchParams(window.location.hash.slice(1)),accessToken=returned.get('access_token'),viewer=new URLSearchParams(window.location.search).get('consulta')==='1';
+window.history.replaceState(null,'',window.location.pathname+window.location.search);
+export default function AuthConfirmation(){const [state,setState]=useState<'loading'|'success'|'error'>('loading');useEffect(()=>{let active=true;if(!accessToken){setState('error');return;}new SupabaseClient(defaultSyncConfig,null,async()=>{}).confirmationUser(accessToken).then(()=>{if(active)setState('success');}).catch(()=>{if(active)setState('error');});return()=>{active=false;};},[]);return <main className="password-recovery"><section className="panel"><h1>{state==='loading'?'Verificando confirmação…':state==='success'?'E-mail confirmado com sucesso':'Link já utilizado ou expirado'}</h1>{state==='success'?<p>Seu e-mail foi confirmado. Entre com sua senha para acessar o ControlAI.</p>:state==='error'?<p>Se você já confirmou o e-mail, basta entrar com sua senha. Caso ainda não tenha confirmado, solicite um novo link na tela de login.</p>:<p role="status">Conferindo o retorno com o serviço de autenticação.</p>}{state!=='loading'&&<a className="primary" href={APP_SITE_URL+(viewer?'?consulta=1':'?login=1')}>Ir para o login</a>}</section></main>;}

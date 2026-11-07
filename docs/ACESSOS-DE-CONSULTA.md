@@ -22,7 +22,7 @@ Abra o link, crie seu próprio login, confirme o e-mail e volte ao link para ent
 
 Os dados são os da última sincronização do titular. O acesso é conferido a cada 30 segundos e ao voltar à tela; Atualizar consulta verifica imediatamente. Revogar bloqueia novas leituras no servidor, e a próxima verificação limpa a tela. A revogação não pode apagar informações já vistas ou capturadas anteriormente.
 
-O portal não usa o banco financeiro local do titular nem a sincronização de edição, e não grava as cópias consultadas em SQLite/IndexedDB. A sessão de consulta fica separada em sessionStorage; sair limpa a sessão e os dados da tela. Requisições antigas de outra seleção ou sessão não podem repor os dados após sair ou trocar de conta.
+O portal não usa o banco financeiro local do titular nem a sincronização de edição, e não grava as cópias consultadas em SQLite/IndexedDB. A sessão de consulta fica separada: sessionStorage por padrão, ou localStorage quando Entrar automaticamente é marcado. A senha não é armazenada. Sair limpa a sessão e os dados da tela. Requisições antigas de outra seleção ou sessão não podem repor os dados após sair ou trocar de conta.
 
 ## Pagamentos e transferências
 

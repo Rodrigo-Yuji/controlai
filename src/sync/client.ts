@@ -42,10 +42,12 @@ export class SupabaseClient {
   this.session=session;await this.saveSession(session);return session;
  }
  async login(email:string,password:string){return this.accept(await this.request('/auth/v1/token?grant_type=password',{email,password}));}
- async signup(email:string,password:string){
+ async signup(email:string,password:string,viewer=false){
   if(password.length<8)throw Error('Use uma senha com pelo menos 8 caracteres.');
-  await this.request('/auth/v1/signup',{email,password});
+  await this.request('/auth/v1/signup?redirect_to='+encodeURIComponent(APP_SITE_URL+(viewer?'?consulta=1':'')),{email,password});
  }
+ async resendConfirmation(email:string,viewer=false){if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))throw Error('Informe seu e-mail.');await this.request('/auth/v1/resend?redirect_to='+encodeURIComponent(APP_SITE_URL+(viewer?'?consulta=1':'')),{type:'signup',email:email.trim()});}
+ async confirmationUser(accessToken:string){const user=await this.request('/auth/v1/user',undefined,accessToken) as {id?:string;email?:string;email_confirmed_at?:string};if(!user?.id||!user.email_confirmed_at)throw Error('Não foi possível confirmar o e-mail. Entre com sua senha ou solicite um novo link.');return user;}
  async requestPasswordRecovery(email:string){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))throw Error('Informe seu e-mail para receber o link de recuperação.');
   await this.request('/auth/v1/recover?redirect_to='+encodeURIComponent(APP_SITE_URL),{email:email.trim()});
