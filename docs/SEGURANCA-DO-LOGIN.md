@@ -1,8 +1,8 @@
-# Senha, exclusão do login e organização dos Ajustes (1.30)
+# Senha, exclusão do login e organização dos Ajustes (1.31)
 
-No principal: Ajustes → Conta de login, logo abaixo de Seu espaço, com botões visíveis.
+No principal: Ajustes → Conta e sincronização, logo abaixo de Seu espaço. Abra a seção para acessar Alterar senha e Deletar minha conta, junto às opções de sincronização.
 
-Na consulta: Ajustes → Conta de login, logo abaixo de Seu espaço, com botões visíveis.
+Na consulta: Ajustes → Conta e sincronização, logo abaixo de Seu espaço. Abra a seção para acessar Alterar senha e Deletar minha conta, junto às opções de sincronização.
 
 ## Alterar senha
 
