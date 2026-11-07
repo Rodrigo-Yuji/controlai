@@ -17,7 +17,7 @@ import {contributionPaid,contributionTarget} from './management';
 import {managementEntryMonth} from './gestora-upgrade';
 export default function SharedDashboard({snapshot,month,tab,onEntries}:{snapshot:Snapshot;month:string;tab:'inicio'|'lancamentos';onEntries:()=>void}){
  const [filters,setFilters]=useState<GuestFilters>({query:'',type:'todos',status:'todos',card:''});const account=snapshot.contas[0],gestora=account.tipo==='gestora',couple=!gestora&&(account.tipo==='casal'||account.conjunta);
- const entries=[...snapshot.lancamentos,...projectRecurrences(month,account.id,snapshot.recorrencias,snapshot.lancamentos).filter(e=>!account.inicioControle||installmentDueDate(account,e)>=account.inicioControle.data)].filter(e=>(gestora?managementEntryMonth(e):e.data.slice(0,7))===month);
+ const entries=[...snapshot.lancamentos,...projectRecurrences(month,account.id,snapshot.recorrencias,snapshot.lancamentos,account.cartoes).filter(e=>!account.inicioControle||installmentDueDate(account,e)>=account.inicioControle.data)].filter(e=>(gestora?managementEntryMonth(e):e.data.slice(0,7))===month);
  const names:[string,string]=[snapshot.salarios.find(s=>s.id===account.id+':1')?.titular||'Titular 1',snapshot.salarios.find(s=>s.id===account.id+':2')?.titular||'Titular 2'];
  const confirmed=entries.filter(e=>e.status==='confirmado'&&inControlPeriod(account,e)),income=confirmed.filter(e=>e.tipo==='receita').reduce((s,e)=>s+e.valorCentavos,0),expense=confirmed.filter(e=>e.tipo==='despesa').reduce((s,e)=>s+e.valorCentavos,0);
  const list=<GuestEntryList entries={entries} startDate={account.inicioControle?.data} cards={account.cartoes??[]} gestora={gestora} preview={tab==='inicio'} filters={filters} onFilters={setFilters} onEntries={onEntries}/>;

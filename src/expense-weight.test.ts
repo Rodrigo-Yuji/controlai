@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {expenseWeight,expenseWeightText} from './expense-weight.ts';
+test('expense weight compares confirmed expenses with confirmed income, can exceed 100%, and handles no income',()=>{assert.equal(expenseWeight(30000,100000),30);assert.equal(expenseWeight(150000,100000),150);assert.equal(expenseWeight(0,100000),0);assert.equal(expenseWeight(30000,0),null);assert.equal(expenseWeight(0,0),null);assert.equal(expenseWeightText(30000,100000),'30% das receitas recebidas');assert.equal(expenseWeightText(1,3),'33,33% das receitas recebidas');assert.equal(expenseWeightText(100,0),'Sem receitas recebidas');});

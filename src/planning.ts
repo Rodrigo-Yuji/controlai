@@ -27,7 +27,7 @@ export async function saveMonthlyBudget(db:Database,accountId:string,month:strin
  await db.transaction([db.contas,db.configuracoes,db.fechamentos,db.lancamentos,db.recorrencias,db.salarios],async tx=>{
   const account=await tx.contas.get(accountId);if(!account||account.tipo==='gestora')throw Error('Selecione uma conta Solo ou Casal.');await ensureOpenMonth(tx,accountId,month);
   const config=await tx.configuracoes.get(accountId);if(config?.planejamentos?.some(p=>p.mes===month))throw Error('Destrave o planejamento deste mês antes de alterá-lo.');
-  const entries=await tx.lancamentos.where('contaId').equals(accountId).toArray(),recurrences=await tx.recorrencias.where('contaId').equals(accountId).toArray(),projections=projectRecurrences(month,accountId,recurrences,entries);
+  const entries=await tx.lancamentos.where('contaId').equals(accountId).toArray(),recurrences=await tx.recorrencias.where('contaId').equals(accountId).toArray(),projections=projectRecurrences(month,accountId,recurrences,entries,account.cartoes);
   const salaries=await tx.salarios.where('contaId').equals(accountId).toArray();
   const base=settings.baseReceita==='atual'?[...entries,...projections].filter(e=>e.tipo==='receita'&&e.data.slice(0,7)===month).reduce((s,e)=>s+e.valorCentavos,0):salaries.filter(s=>s.id===`${accountId}:1`||(account.conjunta&&s.id===`${accountId}:2`)).reduce((s,v)=>s+v.liquido+v.refeicao+v.beneficio+v.adicional,0);
   const fixed=monthlyFixedBudget([...entries,...projections],base,month).totalCentavos;

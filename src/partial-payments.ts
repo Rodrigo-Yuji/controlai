@@ -14,7 +14,7 @@ export async function recordPartialPayment(db:Database,accountId:string,target:L
 export async function recordPartialPaymentIn(tx:Tables,accountId:string,target:Lancamento,amount:number,date:string){
  if(!Number.isSafeInteger(amount)||amount<=0||!validDate(date))throw Error('Informe valor e data válidos.');
   const account=await tx.contas.get(accountId);if(!account)throw Error('Conta não encontrada.');const entries=await tx.lancamentos.where('contaId').equals(accountId).toArray();let source:Lancamento|undefined;
-  if((target.id??0)<0){source=projectRecurrences(target.data.slice(0,7),accountId,await tx.recorrencias.where('contaId').equals(accountId).toArray(),entries).find(e=>e.id===target.id&&e.data===target.data);if(source&&account.tipo==='gestora')source={...source,cartaoId:undefined,faturaMes:undefined};}
+  if((target.id??0)<0){source=projectRecurrences(target.data.slice(0,7),accountId,await tx.recorrencias.where('contaId').equals(accountId).toArray(),entries,account.cartoes).find(e=>e.id===target.id&&e.data===target.data);if(source&&account.tipo==='gestora')source={...source,cartaoId:undefined,faturaMes:undefined};}
   else source=entries.find(e=>e.id===target.id);
   if(!source||source.status!=='previsto'||source.gestao||source.parcial?.papel==='pagamento')throw Error('A previsão foi alterada. Atualize a lista e tente novamente.');
   if(!validDate(source.data)||!Number.isSafeInteger(source.valorCentavos)||source.valorCentavos<=0)throw Error('Data ou valor da previsão inválido.');

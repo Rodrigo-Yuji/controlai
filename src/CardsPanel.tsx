@@ -11,7 +11,7 @@ export default function CardsPanel({conta,mes,registros,recorrencias}:Props){
  const [name,setName]=useState(''),[closing,setClosing]=useState('25'),[due,setDue]=useState('5'),[person,setPerson]=useState(''),[editing,setEditing]=useState(''),[selected,setSelected]=useState(''),[status,setStatus]=useState('todos'),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
  const [paymentOpen,setPaymentOpen]=useState(false),[paymentAmount,setPaymentAmount]=useState(''),[paymentDate,setPaymentDate]=useState(hoje);
  const cards=conta.cartoes??[],card=cards.find(c=>c.id===selected)??cards[0];
- const forecasts=[-2,-1,0].flatMap(offset=>projectRecurrences(shiftMonth(mes,offset),conta.id,recorrencias,registros).filter(e=>!conta.inicioControle||installmentDueDate(conta,e)>=conta.inicioControle.data));
+ const forecasts=[-2,-1,0].flatMap(offset=>projectRecurrences(shiftMonth(mes,offset),conta.id,recorrencias,registros,conta.cartoes).filter(e=>!conta.inicioControle||installmentDueDate(conta,e)>=conta.inicioControle.data));
  const invoiceItems=card?[...registros,...forecasts].filter(e=>e.tipo==='despesa'&&e.cartaoId===card.id&&(e.faturaMes||invoiceMonth(e.data,card))===mes):[];
  const items=invoiceItems.filter(e=>status==='todos'||e.status===status);
  const external=(conta.mercados??[]).filter(p=>card&&p.cartaoId===card.id&&p.pagadorPessoaId&&(p.faturaMes||invoiceMonth(p.data,card))===mes);
