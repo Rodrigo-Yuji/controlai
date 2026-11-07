@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {createSqliteDatabase,type SqlDriver} from './storage/sqlite.ts';
-import {canBatchConfirm,entrySelectionKey,selectionTotals,confirmBatch} from './batch-payments.ts';
+import {canBatchConfirm,entrySelectionKey,selectionTotals,confirmBatch as confirmBatchActual} from './batch-payments.ts';
 import {recordPartialPayment} from './partial-payments.ts';
 import {projectRecurrences} from './finance.ts';
 import {snapshotKey,validateSnapshot} from './sync/snapshot.ts';
 import type {Lancamento} from './db.ts';
 function device(shouldFail?:()=>boolean){const raw=new DatabaseSync(':memory:');const driver:SqlDriver={all:async(s,v=[])=>raw.prepare(s).all(...v),run:async(s,v=[])=>{if(shouldFail?.()&&s.startsWith('INSERT INTO')&&s.includes('lancamentos')&&v.some(x=>typeof x==='string'&&x.includes('Falhar')&&x.includes('"status":"confirmado"')))throw Error('Injected batch failure');const r=raw.prepare(s).run(...v);return{changes:Number(r.changes),lastId:Number(r.lastInsertRowid)};},begin:async()=>{raw.exec('BEGIN IMMEDIATE');},commit:async()=>{raw.exec('COMMIT');},rollback:async()=>{raw.exec('ROLLBACK');}};return createSqliteDatabase(async()=>driver);}
+const confirmBatch=(db:Parameters<typeof confirmBatchActual>[0],id:string,rows:Lancamento[])=>confirmBatchActual(db,id,rows,'2026-11-06');
 const planned=(patch:Partial<Lancamento>={}):Lancamento=>({contaId:'A',descricao:'Previsto',tipo:'despesa',natureza:'variavel',categoria:'Outros',data:'2026-11-06',valorCentavos:10000,status:'previsto',...patch});
 async function account(db:ReturnType<typeof device>){await db.contas.add({id:'A',nome:'A',conjunta:false,padrao:true});}
 test('selection totals keep income and expense separate and eligibility excludes confirmed records',()=>{const income=planned({id:1,tipo:'receita',valorCentavos:30000}),expense=planned({id:2});assert.deepEqual(selectionTotals([income,expense]),{income:30000,expense:10000,total:40000});assert.equal(canBatchConfirm(income),true);assert.equal(canBatchConfirm({...income,status:'confirmado'}),false);assert.notEqual(entrySelectionKey({...income,id:-1,data:'2026-11-01'}),entrySelectionKey({...income,id:-1,data:'2026-12-01'}));});

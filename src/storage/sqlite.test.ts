@@ -29,12 +29,14 @@ test('SQLite persists all document fields, IDs, and account queries after reopen
   try {
     const first = driver(file); const db = createSqliteDatabase(async () => first.api);
     const a = await db.lancamentos.add({...entry('A'), parcela:{grupo:'compra',numero:1,total:3}});
+    const savedTime=(await db.lancamentos.get(a))!.horario;
+    assert.match(savedTime!,/^\d{2}:\d{2}$/);
     const b = await db.lancamentos.add(entry('B','B'));
     assert.notEqual(a,b);
     assert.equal((await db.lancamentos.where('contaId').equals('A').toArray()).length,1);
     first.raw.close();
     const second = driver(file); const restored = createSqliteDatabase(async () => second.api);
-    assert.deepEqual(await restored.lancamentos.get(a), {...entry('A'), parcela:{grupo:'compra',numero:1,total:3},id:a});
+    assert.deepEqual(await restored.lancamentos.get(a), {...entry('A'), parcela:{grupo:'compra',numero:1,total:3},id:a,horario:savedTime});
     const c = await restored.lancamentos.add(entry('C'));
     assert.ok(c>b); second.raw.close();
   } finally { rmSync(folder,{recursive:true,force:true}); }

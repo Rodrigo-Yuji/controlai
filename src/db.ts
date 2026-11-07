@@ -1,7 +1,7 @@
 export type Tipo = 'receita' | 'despesa';
 export type Natureza = 'fixo' | 'variavel';
 export type Status = 'previsto' | 'confirmado';
-export interface Lancamento {extratoIds?:string[];solicitacaoId?:string;  contaId?: string; id?: number; descricao: string; valorCentavos: number; tipo: Tipo; natureza: Natureza; categoria: string; data: string; status: Status; observacao?: string; origemImportacao?: string; grupoRecorrencia?: string; recorrenciaId?: number; parcela?: Parcela; cartaoId?:string; faturaMes?:string; gestao?:MovimentoGestao; parcial?:{grupo:string;papel:'saldo'|'pagamento';dataPrevista:string}; }
+export interface Lancamento {horario?:string; dataPrevista?:string; extratoIds?:string[];solicitacaoId?:string;  contaId?: string; id?: number; descricao: string; valorCentavos: number; tipo: Tipo; natureza: Natureza; categoria: string; data: string; status: Status; observacao?: string; origemImportacao?: string; grupoRecorrencia?: string; recorrenciaId?: number; parcela?: Parcela; cartaoId?:string; faturaMes?:string; gestao?:MovimentoGestao; parcial?:{grupo:string;papel:'saldo'|'pagamento';dataPrevista:string}; }
 export interface Categoria { contaId?: string; id?: number; nome: string; tipo: Tipo; natureza: Natureza; }
 export interface Recorrencia { contaId?: string; id?: number; descricao: string; valorCentavos: number; categoria: string; natureza: Natureza; tipo: Tipo; inicio: string; dia: number; ativa: boolean; observacao?: string; cartaoId?:string; }
 export interface Salario { id: string; contaId?: string; titular?: string; liquido: number; refeicao: number; beneficio: number; adicional: number; }

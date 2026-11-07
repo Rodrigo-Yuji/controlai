@@ -11,7 +11,7 @@ export function invoiceMonth(date:string,card:Cartao|undefined){
 }
 export function dueDate(month:string,day:number){const [y,m]=month.split('-').map(Number);return `${month}-${String(Math.min(day,new Date(Date.UTC(y,m,0)).getUTCDate())).padStart(2,'0')}`;}
 export function projectRecurrences(month:string,accountId:string,recurrences:Recorrencia[],entries:Lancamento[]):Lancamento[]{
- return recurrences.filter(r=>r.contaId===accountId&&r.ativa&&r.inicio.slice(0,7)<=month&&!entries.some(e=>e.contaId===accountId&&e.recorrenciaId===r.id&&(e.parcial?.dataPrevista??e.data).slice(0,7)===month)).map(r=>({contaId:accountId,id:-(r.id??0),recorrenciaId:r.id,descricao:r.descricao,observacao:r.observacao,valorCentavos:r.valorCentavos,tipo:r.tipo,natureza:r.natureza,categoria:r.categoria,data:dueDate(month,r.dia),status:'previsto',...(r.cartaoId?{cartaoId:r.cartaoId}:{})}));
+ return recurrences.filter(r=>r.contaId===accountId&&r.ativa&&r.inicio.slice(0,7)<=month&&!entries.some(e=>e.contaId===accountId&&e.recorrenciaId===r.id&&(e.parcial?.dataPrevista??e.dataPrevista??e.data).slice(0,7)===month)).map(r=>({contaId:accountId,id:-(r.id??0),recorrenciaId:r.id,descricao:r.descricao,observacao:r.observacao,valorCentavos:r.valorCentavos,tipo:r.tipo,natureza:r.natureza,categoria:r.categoria,data:dueDate(month,r.dia),status:'previsto',...(r.cartaoId?{cartaoId:r.cartaoId}:{})}));
 }
 export function matchesEntry(entry:Lancamento,query:string,status:'todos'|'previsto'|'confirmado',cardId=''){
  const text=`${entry.descricao} ${entry.observacao??''} ${entry.categoria} ${(entry.valorCentavos/100).toFixed(2)} ${(entry.valorCentavos/100).toFixed(2).replace('.',',')} ${moeda(entry.valorCentavos)}`.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');

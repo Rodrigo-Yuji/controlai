@@ -1,3 +1,4 @@
+import {horaAtual} from './utils.ts';
 import type {Lancamento} from './db.ts';
 import type {Database,Tables} from './storage/types.ts';
 import {projectRecurrences,invoiceMonth} from './finance.ts';
@@ -24,9 +25,9 @@ export async function recordPartialPaymentIn(tx:Tables,accountId:string,target:L
   const metadata=source.parcial??{grupo:crypto.randomUUID(),papel:'saldo' as const,dataPrevista:source.data};
   const base={...value,...(card?{faturaMes:source.faturaMes||invoiceMonth(metadata.dataPrevista,card)}:{}),parcial:metadata};
   const sourceId=(source.id??0)>0?source.id!:await tx.lancamentos.add({...base});
-  if(amount===source.valorCentavos){await tx.lancamentos.update(sourceId,{...base,data:date,status:'confirmado'});return {remaining:0};}
+  if(amount===source.valorCentavos){await tx.lancamentos.update(sourceId,{...base,...(!source.parcial?{parcial:undefined,dataPrevista:source.dataPrevista??source.data}:{}),data:date,horario:horaAtual(),status:'confirmado'});return {remaining:0};}
   await tx.lancamentos.update(sourceId,{...base,valorCentavos:source.valorCentavos-amount});
-  await tx.lancamentos.add({...base,valorCentavos:amount,data:date,status:'confirmado',parcial:{...metadata,papel:'pagamento'}});
+  await tx.lancamentos.add({...base,valorCentavos:amount,data:date,horario:horaAtual(),status:'confirmado',parcial:{...metadata,papel:'pagamento'}});
   return {remaining:source.valorCentavos-amount};
 }
 export async function undoPartialPayment(db:Database,accountId:string,id:number){
@@ -38,5 +39,5 @@ export async function undoPartialPayment(db:Database,accountId:string,id:number)
  });
 }
 export async function reopenPartialBalance(db:Database,accountId:string,id:number){
- await db.transaction([db.lancamentos,db.fechamentos],async tx=>{const source=await tx.lancamentos.get(id);if(source?.contaId!==accountId||source.parcial?.papel!=='saldo'||source.status!=='confirmado')throw Error('Lançamento não encontrado.');await guard(tx,accountId,source);const hasParts=(await tx.lancamentos.where('contaId').equals(accountId).toArray()).some(e=>e.parcial?.grupo===source.parcial!.grupo&&e.parcial.papel==='pagamento');await tx.lancamentos.update(id,{status:'previsto',data:source.parcial.dataPrevista,...(!hasParts?{parcial:undefined}:{})});});
+ await db.transaction([db.lancamentos,db.fechamentos],async tx=>{const source=await tx.lancamentos.get(id);if(source?.contaId===accountId&&source.status==='confirmado'&&!source.parcial&&source.dataPrevista){await guard(tx,accountId,source,source.dataPrevista);await tx.lancamentos.update(id,{status:'previsto',data:source.dataPrevista,dataPrevista:undefined});return;}if(source?.contaId!==accountId||source.parcial?.papel!=='saldo'||source.status!=='confirmado')throw Error('Lançamento não encontrado.');await guard(tx,accountId,source);const hasParts=(await tx.lancamentos.where('contaId').equals(accountId).toArray()).some(e=>e.parcial?.grupo===source.parcial!.grupo&&e.parcial.papel==='pagamento');await tx.lancamentos.update(id,{status:'previsto',data:source.parcial.dataPrevista,...(!hasParts?{parcial:undefined}:{})});});
 }

@@ -1,3 +1,4 @@
+import {horaAtual} from '../utils';
 import {readTables,snapshotKey,validateSnapshot,writeTables} from '../sync/snapshot';
 import Dexie, { liveQuery, type Collection as DexieCollection, type Table, type UpdateSpec } from 'dexie';
 import { LegacyDatabase } from './legacy';
@@ -11,10 +12,11 @@ function collection<T, K>(source: DexieCollection<T, K>): Collection<T> {
   };
 }
 function table<T, K>(source: Table<T, K>): StorageTable<T, K> {
+  const stamp=(row:T):T=>{const value=row as {id?:unknown;horario?:string};return source.name==='lancamentos'&&value.id===undefined&&!value.horario?{...row,horario:horaAtual()}:row;};
   return {
     name: source.name as StorageTable<T, K>['name'],
     toArray: () => source.toArray(), get: id => source.get(id), count: () => source.count(),
-    add: row => source.add(row), put: row => source.put(row), bulkAdd: rows => source.bulkAdd([...rows]),
+    add: row => source.add(stamp(row)), put: row => source.put(row), bulkAdd: rows => source.bulkAdd(rows.map(stamp)),
     bulkDelete: ids => source.bulkDelete([...ids]), update: (id, changes) => source.update(id, changes as UpdateSpec<T>),
     delete: id => source.delete(id), clear: () => source.clear(),
     where: index => ({ equals: value => collection(source.where(index).equals(value as string | number)) }),
