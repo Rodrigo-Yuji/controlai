@@ -1,5 +1,6 @@
+import {createPortal} from 'react-dom';
 import {useLiveQuery} from './storage/useLiveQuery';
-import {changesBetween} from './activity';
+import {changesBetween} from './sync/changes';
 import {startLogin,goToSpace,goToLogin,loginIdentity} from './workspace-session';
 import {personalContext,LEGACY_OWNER} from './workspace-context';
 import AccountSecurity from './AccountSecurity';
@@ -14,7 +15,7 @@ import {SupabaseClient,validateConfig,type Session,type SyncConfig} from './sync
 import {SyncEngine,type SyncResult} from './sync/engine';
 import {backupPayload,snapshotKey,type Snapshot} from './sync/snapshot';
 
-export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
+export default function SyncPanel({onStatus,securityTarget}:{onStatus:(message:string)=>void;securityTarget:HTMLElement|null}){
  const [config,setConfig]=useState<SyncConfig|null>(null),[session,setSession]=useState<Session|null>(null);
  const [url,setUrl]=useState(''),[key,setKey]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState('');
  const [remember,setRemember]=useState(ownerAutoLogin);
@@ -88,7 +89,7 @@ export default function SyncPanel({onStatus}:{onStatus:(message:string)=>void}){
  <div className="sync-actions"><button type="button" className="secondary" onClick={()=>{void choose('local');}}>Usar dados deste dispositivo</button><button type="button" className="secondary" onClick={()=>{void choose('cloud');}}>Usar dados da nuvem</button></div></div>}
  <div className="sync-actions sync-backup-actions"><button type="button" className="secondary" onClick={()=>{void downloadRecovery('local');}}>Backup local de recuperação</button><button type="button" className="secondary" onClick={()=>{void downloadRecovery('cloud');}}>Backup remoto de recuperação</button></div></>}
  </fieldset>
- {session&&<div className="sync-details"><p>Última sincronização concluída: <strong>{syncInfo?.last?new Date(syncInfo.last).toLocaleString('pt-BR'):'Ainda não concluída neste dispositivo'}</strong></p><p>Alterações aguardando envio: <strong>{syncInfo?.pending??'Conecte a origem dos dados'}</strong></p></div>}{session&&config&&<AccountSecurity session={session} config={config} owner disabled={busy} protect={protectSecurity} onComplete={finishSecurity}/>}
+ {session&&<div className="sync-details"><p>Última sincronização concluída: <strong>{syncInfo?.last?new Date(syncInfo.last).toLocaleString('pt-BR'):'Ainda não concluída neste dispositivo'}</strong></p><p>Alterações aguardando envio: <strong>{syncInfo?.pending??'Conecte a origem dos dados'}</strong></p></div>}{securityTarget&&createPortal(session&&config?<AccountSecurity session={session} config={config} owner disabled={busy} protect={protectSecurity} onComplete={finishSecurity}/>:<><p className="muted">Entre no seu login para alterar a senha ou excluir o cadastro.</p><button className="secondary" onClick={()=>window.dispatchEvent(new Event('controlai-open-sync'))}>Entrar no login</button></>,securityTarget)}
  <p className="muted sync-status-message" role="status">{busy?'Sincronizando…':result.message}</p>{error&&<p className="error" role="alert">{error}</p>}
  </section>;
 }

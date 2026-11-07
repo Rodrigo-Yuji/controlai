@@ -1,8 +1,8 @@
-# Senha, exclusão do login e organização dos Ajustes (1.26)
+# Senha, exclusão do login e organização dos Ajustes (1.30)
 
-No principal: Ajustes → Sincronização entre dispositivos → Conta de login · senha e exclusão.
+No principal: Ajustes → Conta de login, logo abaixo de Seu espaço, com botões visíveis.
 
-Na consulta: Ajustes → Segurança do login → Conta de login · senha e exclusão.
+Na consulta: Ajustes → Conta de login, logo abaixo de Seu espaço, com botões visíveis.
 
 ## Alterar senha
 

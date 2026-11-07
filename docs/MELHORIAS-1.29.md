@@ -1,5 +1,7 @@
 # Melhorias 1.29
 
+Atualização: histórico/lixeira e envio de anexos foram retirados na versão 1.30 para reduzir armazenamento. Consulte MELHORIAS-1.30.md para os caminhos atuais.
+
 ## Onde encontrar
 
 - **Início → Pendências e previsão de saldo:** contas previstas, atrasos, contribuições, reembolsos, repasses e projeção diária do saldo corrente. Disponível também na consulta autorizada.

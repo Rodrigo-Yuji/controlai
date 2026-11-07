@@ -18,3 +18,6 @@ export function matchesEntry(entry:Lancamento,query:string,status:'todos'|'previ
  const needle=query.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
  return (status==='todos'||entry.status===status)&&(!cardId||entry.cartaoId===cardId)&&text.includes(needle);
 }
+
+// Numeric IDs are allocated at insertion and preserved by edits, backups and sync.
+export function newestEntryFirst(a:Lancamento,b:Lancamento){const savedA=(a.id??0)>0,savedB=(b.id??0)>0;if(savedA!==savedB)return savedA?-1:1;if(savedA&&savedB)return b.id!-a.id!;return b.data.localeCompare(a.data)||((b.id??0)-(a.id??0));}

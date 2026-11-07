@@ -16,6 +16,7 @@ returns bigint language plpgsql security definer set search_path = '' as $$
 declare who uuid := auth.uid(); new_revision bigint;
 begin
   if who is null then raise exception 'Login obrigatório'; end if;
+  if jsonb_typeof(next_snapshot->'contas')='array' then next_snapshot:=jsonb_set(next_snapshot,'{contas}',coalesce((select jsonb_agg(a-'atividades') from jsonb_array_elements(next_snapshot->'contas') a),'[]'::jsonb));end if;
   if expected_revision < 0 or next_snapshot is null or jsonb_typeof(next_snapshot) <> 'object' or octet_length(next_snapshot::text) > 8388608 then
     raise exception 'Cópia inválida';
   end if;

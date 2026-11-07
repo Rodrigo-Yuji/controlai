@@ -2,8 +2,9 @@ import {validatePlanning} from '../planning.ts';
 import {validateFinancialReferences,validateManagement} from '../management.ts';
 import {TABLE_NAMES,NUMERIC_TABLES, type Records, type TableName, type Tables} from '../storage/types.ts';
 export type Snapshot = {[N in TableName]:Records[N][]};
+export function withoutHistory(snapshot:Snapshot):Snapshot{return {...snapshot,contas:snapshot.contas.map(account=>{const clean={...account};delete clean.atividades;return clean;})};}
 export async function readTables(tables:Tables):Promise<Snapshot> {
-  return Object.fromEntries(await Promise.all(TABLE_NAMES.map(async name=>[name,await tables[name].toArray()]))) as Snapshot;
+  return withoutHistory(Object.fromEntries(await Promise.all(TABLE_NAMES.map(async name=>[name,await tables[name].toArray()]))) as Snapshot);
 }
 export function stable(value:unknown):string {
   if(value instanceof Date)return JSON.stringify(value.toJSON());
@@ -12,11 +13,11 @@ export function stable(value:unknown):string {
   return JSON.stringify(value)??'null';
 }
 export function snapshotKey(snapshot:Snapshot):string {
-  return stable(Object.fromEntries(TABLE_NAMES.map(name=>[name,[...snapshot[name]].sort((a,b)=>String(a.id).localeCompare(String(b.id)))])));
+  const normalized=withoutHistory(snapshot);return stable(Object.fromEntries(TABLE_NAMES.map(name=>[name,[...normalized[name]].sort((a,b)=>String(a.id).localeCompare(String(b.id)))])));
 }
 export function validateSnapshot(value:unknown):Snapshot {
   if(!value||typeof value!=='object')throw Error('Cópia de sincronização inválida.');
-  const snapshot=value as Snapshot;
+  if(!Array.isArray((value as Snapshot).contas))throw Error('Tabela ausente: contas.');const snapshot=withoutHistory(value as Snapshot);
   const accounts=new Set<string>();
   for(const name of TABLE_NAMES){
     if(!Array.isArray(snapshot[name]))throw Error(`Tabela ausente: ${name}.`);
@@ -44,6 +45,7 @@ export function validateSnapshot(value:unknown):Snapshot {
   return JSON.parse(JSON.stringify(snapshot)) as Snapshot;
 }
 export async function writeTables(tables:Tables,snapshot:Snapshot){
+ snapshot=withoutHistory(snapshot);
   for(const name of TABLE_NAMES)await tables[name].clear();
   for(const name of TABLE_NAMES){
     // The mapped union shares the same JSON storage representation.
@@ -51,4 +53,4 @@ export async function writeTables(tables:Tables,snapshot:Snapshot){
     if(snapshot[name].length)await table.bulkAdd(snapshot[name]);
   }
 }
-export function backupPayload(snapshot:Snapshot){return {app:'ControlAI',versao:5,...snapshot};}
+export function backupPayload(snapshot:Snapshot){return {app:'ControlAI',versao:5,...withoutHistory(snapshot)};}

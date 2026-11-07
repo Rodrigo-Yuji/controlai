@@ -29,6 +29,7 @@ export class SyncEngine {
    }
    const cloud=await this.remote.read();if(!cloud)throw Error('Cópia remota indisponível.');
    const next=validateSnapshot(cloud.snapshot);const nextKey=snapshotKey(next);
+   if(nextKey===baseKey&&localKey!==baseKey){const revision=await this.remote.push(cloud.revision,local);await this.db.setLocalState('sync.binding',{owner:this.owner,revision,base:local});await this.db.setLocalState('sync.lastSuccess',{owner:this.owner,at:new Date().toISOString()});return {kind:'ready',message:'Alterações locais enviadas após a atualização de armazenamento.'};}
    if(localKey!==baseKey&&localKey!==nextKey){await this.db.setLocalState('sync.recovery',{owner:this.owner,at:new Date().toISOString(),local,cloud});return {kind:'conflict',message:'Os dois dispositivos foram alterados. A sincronização foi pausada para preservar as duas cópias.'};}
    const changed=await this.db.applySnapshot(localKey,next,'sync.binding',{owner:this.owner,revision:cloud.revision,base:next});if(changed)await this.db.setLocalState('sync.lastSuccess',{owner:this.owner,at:new Date().toISOString()});
    return changed?{kind:'ready',message:'Dados atualizados pela nuvem.'}:{kind:'retry',message:'Nova alteração local; sincronizando novamente.'};
