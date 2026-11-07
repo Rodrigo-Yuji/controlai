@@ -204,3 +204,47 @@ begin
 end $$;
 revoke all on function public.controlai_requests_overview(uuid,text,integer,integer),public.controlai_cancel_request(uuid),public.controlai_undo_request(uuid,text,bigint) from public,anon;
 grant execute on function public.controlai_requests_overview(uuid,text,integer,integer),public.controlai_cancel_request(uuid),public.controlai_undo_request(uuid,text,bigint) to authenticated;
+
+-- Enforce owner-assigned request identity.
+-- Request identity enforcement. Triggers also protect older client/RPC versions.
+create or replace function public.controlai_request_identity_guard()
+returns trigger language plpgsql security definer set search_path='' as $$
+declare person text;snap jsonb;c jsonb;needs_check boolean;
+begin
+ if not(new.payload ? 'reembolsoPessoaId') then return new;end if;
+ needs_check:=tg_op='INSERT';
+ if tg_op='UPDATE' then needs_check:=new.payload is distinct from old.payload or new.owner is distinct from old.owner or new.account_id is distinct from old.account_id or new.requester is distinct from old.requester or new.requester_email is distinct from old.requester_email or(new.status='aprovado' and old.status<>'aprovado');end if;
+ if not needs_check then return new;end if;
+ if tg_op='INSERT' then
+  select pessoa_id into person from public.controlai_account_viewers where owner=new.owner and account_id=new.account_id and email=new.requester_email for share;
+ else
+  select pessoa_id into person from public.controlai_account_viewers where owner=new.owner and account_id=new.account_id and email=new.requester_email;
+ end if;
+ if not found or person is null then raise exception 'VIEWER_IDENTITY_REQUIRED';end if;
+ if new.payload->>'reembolsoPessoaId' is distinct from person then
+  if tg_op='UPDATE' then raise exception 'VIEWER_IDENTITY_CHANGED';else raise exception 'VIEWER_IDENTITY_MISMATCH';end if;
+ end if;
+ select snapshot into snap from public.controlai_vaults where owner=new.owner;
+ select a into c from jsonb_array_elements(coalesce(snap->'contas','[]'::jsonb)) a where a->>'id'=new.account_id;
+ if c->>'tipo' is distinct from 'gestora' or public.controlai_viewer_identity(c,snap,person) is null or new.payload->>'tipo' is distinct from 'despesa' or new.payload->>'status' is distinct from 'confirmado' then raise exception 'VIEWER_PERSON_INVALID';end if;
+ return new;
+end $$;
+revoke all on function public.controlai_request_identity_guard() from public,anon,authenticated;
+drop trigger if exists controlai_request_identity_guard on public.controlai_requests;
+create trigger controlai_request_identity_guard before insert or update of payload,owner,account_id,requester,requester_email,status on public.controlai_requests for each row execute function public.controlai_request_identity_guard();
+create or replace function public.controlai_submit_identified_household_request(p_owner uuid,p_account text,p_payload jsonb)
+returns uuid language plpgsql security definer set search_path='' as $$
+declare person text;request_id uuid;stored text;
+begin
+ if not public.controlai_request_access(p_owner,p_account) then raise exception 'Acesso não autorizado' using errcode='42501';end if;
+ select pessoa_id into person from public.controlai_account_viewers where owner=p_owner and account_id=p_account and email=public.controlai_verified_email() for share;
+ if person is null then raise exception 'VIEWER_IDENTITY_REQUIRED';end if;
+ if p_payload ? 'identificacaoEsperada' and p_payload->>'identificacaoEsperada' is distinct from person then raise exception 'VIEWER_IDENTITY_CHANGED';end if;
+ if p_payload ? 'reembolsoPessoaId' and p_payload->>'reembolsoPessoaId' is distinct from person then raise exception 'VIEWER_IDENTITY_MISMATCH';end if;
+ request_id:=public.controlai_submit_request(p_owner,p_account,p_payload||jsonb_build_object('reembolsoPessoaId',person));
+ select payload->>'reembolsoPessoaId' into stored from public.controlai_requests where id=request_id;
+ if stored is distinct from person then raise exception 'VIEWER_IDENTITY_SETUP';end if;
+ return request_id;
+end $$;
+revoke all on function public.controlai_submit_identified_household_request(uuid,text,jsonb) from public,anon;
+grant execute on function public.controlai_submit_identified_household_request(uuid,text,jsonb) to authenticated;
