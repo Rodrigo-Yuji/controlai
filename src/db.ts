@@ -14,7 +14,7 @@ export type TipoConta='solo'|'casal'|'gestora';
 export interface Cartao {id:string;nome:string;fechamento:number;vencimento:number;pessoaId?:string;arquivado?:boolean}
 export interface PessoaGestora {id:string;nome:string;inicioMes:string;fimMes?:string;contribuicoes:{desde:string;valorCentavos:number}[]}
 export interface ItemMercado {id:string;descricao:string;pessoaId:string;valorCentavos:number}
-export interface CompraMercado {id:string;descricao:string;data:string;cartaoId?:string;pagadorPessoaId?:string;faturaMes?:string;totalCentavos:number;itens:ItemMercado[]}
+export interface CompraMercado {solicitacaoId?:string;categoria?:string;natureza?:Natureza;observacao?:string;id:string;descricao:string;data:string;cartaoId?:string;pagadorPessoaId?:string;faturaMes?:string;totalCentavos:number;itens:ItemMercado[]}
 export interface MovimentoGestao {tipo:'contribuicao'|'compraMercado'|'reembolsoMercado'|'repasseMercado'|'receitaPessoa';pessoaId?:string;mesReferencia?:string;compraId?:string}
 export interface DistribuicaoCasal {valorPessoalCentavos?:number;mes:string;totalCentavos:number;comumCentavos:number;pessoais:[number,number];percentuaisPessoais?:[number,number];percentualPessoal?:number;confirmadaEm:string}
 export interface TransferenciaPessoal {id:string;titular:1|2;data:string;valorCentavos:number}

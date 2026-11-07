@@ -15,7 +15,8 @@ export async function normalizeGestoraCategories(db:Database,accountId:string){
   const categories=await tx.categorias.where('contaId').equals(accountId).toArray();
   const old=categories.find(c=>c.tipo==='receita'&&c.nome==='Contribuições');
   const needsContribution=Boolean(old)||entries.some(e=>e.gestao?.tipo==='contribuicao'&&e.categoria!=='Contribuição')||recurrences.some(r=>r.tipo==='receita'&&r.categoria==='Contribuições');
-  const needsMarket=entries.some(e=>['compraMercado','repasseMercado'].includes(e.gestao?.tipo??'')&&e.categoria!=='Mercado');
+  const legacyMarket=(e:Lancamento)=>['compraMercado','repasseMercado'].includes(e.gestao?.tipo??'')&&!account.mercados?.some(p=>p.id===e.gestao?.compraId&&p.categoria);
+  const needsMarket=entries.some(e=>legacyMarket(e)&&e.categoria!=='Mercado');
   if(needsContribution){
    if(!categories.some(c=>c.tipo==='receita'&&c.nome==='Contribuição'))await tx.categorias.add({contaId:accountId,nome:'Contribuição',tipo:'receita',natureza:old?.natureza??'fixo'});
    await tx.lancamentos.filter(e=>e.contaId===accountId&&e.tipo==='receita'&&(e.categoria==='Contribuições'||e.gestao?.tipo==='contribuicao')).modify({categoria:'Contribuição'});
@@ -24,7 +25,7 @@ export async function normalizeGestoraCategories(db:Database,accountId:string){
   }
   if(needsMarket){
    if(!categories.some(c=>c.tipo==='despesa'&&c.nome==='Mercado'))await tx.categorias.add({contaId:accountId,nome:'Mercado',tipo:'despesa',natureza:'variavel'});
-   await tx.lancamentos.filter(e=>e.contaId===accountId&&['compraMercado','repasseMercado'].includes(e.gestao?.tipo??'')).modify({categoria:'Mercado'});
+   await tx.lancamentos.filter(e=>e.contaId===accountId&&legacyMarket(e)).modify({categoria:'Mercado'});
   }
  });
 }

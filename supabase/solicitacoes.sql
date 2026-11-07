@@ -18,24 +18,41 @@ $$;
 revoke all on function public.controlai_request_access(uuid,text) from public,anon,authenticated;
 create or replace function public.controlai_submit_request(p_owner uuid,p_account text,p_payload jsonb)
 returns uuid language plpgsql security definer set search_path='' as $$
-declare result uuid;
+declare result uuid; c jsonb; person jsonb; clean_payload jsonb;
 begin
  if not public.controlai_request_access(p_owner,p_account) then raise exception 'Acesso não autorizado' using errcode='42501'; end if;
  if jsonb_typeof(p_payload) is distinct from 'object' or coalesce(length(btrim(p_payload->>'descricao')),0) not between 1 and 200 or coalesce(p_payload->>'tipo','') not in ('receita','despesa') or coalesce(p_payload->>'status','') not in ('previsto','confirmado') or coalesce(p_payload->>'valorCentavos','') !~ '^[1-9][0-9]{0,11}$' or coalesce(p_payload->>'data','') !~ '^\d{4}-\d{2}-\d{2}$' or length(coalesce(p_payload->>'observacao',''))>1000 then raise exception 'Solicitação inválida'; end if;
  if to_char((p_payload->>'data')::date,'YYYY-MM-DD')<>p_payload->>'data' then raise exception 'Data inválida'; end if;
+ if p_payload ? 'reembolsoPessoaId' then
+  select a into c from public.controlai_vaults v cross join lateral jsonb_array_elements(v.snapshot->'contas') a where v.owner=p_owner and a->>'id'=p_account;
+  if c->>'tipo' is distinct from 'gestora' or jsonb_typeof(p_payload->'reembolsoPessoaId') is distinct from 'string' or p_payload->>'tipo' is distinct from 'despesa' or p_payload->>'status' is distinct from 'confirmado' then raise exception 'Compra para reembolso inválida'; end if;
+  select a into person from jsonb_array_elements(coalesce(c->'pessoas','[]'::jsonb)) a where a->>'id'=p_payload->>'reembolsoPessoaId' and coalesce(a->>'inicioMes','0000-01')<=left(p_payload->>'data',7) and coalesce(a->>'fimMes','9999-12')>=left(p_payload->>'data',7);
+  if person is null then raise exception 'Participante não encontrado nesta gestora'; end if;
+ end if;
  if (select count(*) from public.controlai_requests where requester=auth.uid() and created_at>now()-interval '1 day')>=20 then raise exception 'Limite diário de solicitações atingido'; end if;
- insert into public.controlai_requests(owner,account_id,requester,requester_email,payload) values(p_owner,p_account,auth.uid(),public.controlai_verified_email(),jsonb_build_object('descricao',btrim(p_payload->>'descricao'),'tipo',p_payload->>'tipo','status',p_payload->>'status','data',p_payload->>'data','valorCentavos',(p_payload->>'valorCentavos')::bigint,'observacao',coalesce(p_payload->>'observacao',''))) returning id into result;
+ clean_payload:=jsonb_build_object('descricao',btrim(p_payload->>'descricao'),'tipo',p_payload->>'tipo','status',p_payload->>'status','data',p_payload->>'data','valorCentavos',(p_payload->>'valorCentavos')::bigint,'observacao',coalesce(p_payload->>'observacao',''));
+ if p_payload ? 'reembolsoPessoaId' then clean_payload:=clean_payload||jsonb_build_object('reembolsoPessoaId',p_payload->>'reembolsoPessoaId');end if;
+ insert into public.controlai_requests(owner,account_id,requester,requester_email,payload) values(p_owner,p_account,auth.uid(),public.controlai_verified_email(),clean_payload) returning id into result;
  return result;
 end $$;
+-- Separate endpoint prevents old servers from silently treating this as an expense.
+create or replace function public.controlai_submit_household_request(p_owner uuid,p_account text,p_payload jsonb)
+returns uuid language plpgsql security definer set search_path='' as $$
+begin
+ if not(p_payload ? 'reembolsoPessoaId') or p_payload->>'reembolsoPessoaId' is null then raise exception 'Informe quem pagou';end if;
+ return public.controlai_submit_request(p_owner,p_account,p_payload);
+end $$;
+revoke all on function public.controlai_submit_household_request(uuid,text,jsonb) from public,anon;
+grant execute on function public.controlai_submit_household_request(uuid,text,jsonb) to authenticated;
 create or replace function public.controlai_list_requests(p_owner uuid,p_account text)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 begin
  if auth.uid() is null or not(auth.uid()=p_owner or public.controlai_request_access(p_owner,p_account)) then raise exception 'Acesso não autorizado' using errcode='42501'; end if;
- return coalesce((select jsonb_agg(to_jsonb(r) order by r.created_at desc) from (select * from public.controlai_requests where owner=p_owner and account_id=p_account and (auth.uid()=p_owner or requester=auth.uid()) order by created_at desc limit 100) r),'[]'::jsonb);
+ return coalesce((select jsonb_agg(to_jsonb(r) order by (r.status='pendente') desc,r.created_at desc) from (select * from public.controlai_requests where owner=p_owner and account_id=p_account and (auth.uid()=p_owner or requester=auth.uid()) order by (status='pendente') desc,created_at desc limit 100) r),'[]'::jsonb);
 end $$;
 create or replace function public.controlai_resolve_request(p_id uuid,p_status text,p_category text,p_revision bigint,p_reason text default '')
 returns bigint language plpgsql security definer set search_path='' as $$
-declare r public.controlai_requests; v public.controlai_vaults; c jsonb; cat jsonb; entry jsonb; next_id bigint; rows jsonb; next_snapshot jsonb;
+declare r public.controlai_requests; v public.controlai_vaults; c jsonb; cat jsonb; entry jsonb; next_id bigint; rows jsonb; next_snapshot jsonb; person jsonb; purchase jsonb; purchase_id text;
 begin
  select * into r from public.controlai_requests where id=p_id for update;
  if not found or r.owner<>auth.uid() then raise exception 'Acesso não autorizado' using errcode='42501'; end if;
@@ -51,12 +68,24 @@ begin
  if exists(select 1 from jsonb_array_elements(v.snapshot->'fechamentos') f where f->>'contaId'=r.account_id and f->>'mes'=left(r.payload->>'data',7)) then raise exception 'Mês fechado'; end if;
  select a into cat from jsonb_array_elements(v.snapshot->'categorias') a where a->>'contaId'=r.account_id and a->>'tipo'=r.payload->>'tipo' and a->>'nome'=p_category;
  if cat is null then raise exception 'Categoria inválida'; end if;
+ if r.payload ? 'reembolsoPessoaId' then
+  if c->>'tipo' is distinct from 'gestora' or r.payload->>'tipo' is distinct from 'despesa' or r.payload->>'status' is distinct from 'confirmado' then raise exception 'Compra para reembolso inválida';end if;
+  select a into person from jsonb_array_elements(coalesce(c->'pessoas','[]'::jsonb)) a where a->>'id'=r.payload->>'reembolsoPessoaId' and coalesce(a->>'inicioMes','0000-01')<=left(r.payload->>'data',7) and coalesce(a->>'fimMes','9999-12')>=left(r.payload->>'data',7);
+  if person is null then raise exception 'Participante não encontrado nesta gestora';end if;
+  purchase_id:='solicitacao:'||r.id::text;
+  if exists(select 1 from jsonb_array_elements(coalesce(c->'mercados','[]'::jsonb)) a where a->>'id'=purchase_id or a->>'solicitacaoId'=r.id::text) or exists(select 1 from jsonb_array_elements(coalesce(v.snapshot->'lancamentos','[]'::jsonb)) a where a->>'solicitacaoId'=r.id::text) then raise exception 'Solicitação já registrada';end if;
+  purchase:=jsonb_build_object('id',purchase_id,'solicitacaoId',r.id::text,'descricao',r.payload->>'descricao','data',r.payload->>'data','totalCentavos',(r.payload->>'valorCentavos')::bigint,'pagadorPessoaId',r.payload->>'reembolsoPessoaId','itens','[]'::jsonb,'categoria',p_category,'natureza',cat->>'natureza','observacao',coalesce(r.payload->>'observacao',''));
+  c:=jsonb_set(c,'{mercados}',coalesce(c->'mercados','[]'::jsonb)||jsonb_build_array(purchase));
+  select jsonb_agg(case when a->>'id'=r.account_id then c else a end order by position) into rows from jsonb_array_elements(v.snapshot->'contas') with ordinality as t(a,position);
+  next_snapshot:=jsonb_set(v.snapshot,'{contas}',rows);
+ else
  rows:=coalesce(v.snapshot->'lancamentos','[]'::jsonb);
  if exists(select 1 from jsonb_array_elements(rows) a where a->>'solicitacaoId'=r.id::text) then raise exception 'Solicitação já registrada'; end if;
  select coalesce(max((a->>'id')::bigint),0)+1 into next_id from jsonb_array_elements(rows) a;
  if next_id>9007199254740991 then raise exception 'Limite de identificadores atingido'; end if;
  entry:=r.payload||jsonb_build_object('id',next_id,'contaId',r.account_id,'categoria',p_category,'natureza',cat->>'natureza','solicitacaoId',r.id::text);
  next_snapshot:=jsonb_set(v.snapshot,'{lancamentos}',rows||jsonb_build_array(entry));
+ end if;
 
  if octet_length(next_snapshot::text)>8388608 then raise exception 'Cofre sem espaço'; end if;
  update public.controlai_vaults set snapshot=next_snapshot,revision=revision+1,updated_at=now() where owner=auth.uid();
