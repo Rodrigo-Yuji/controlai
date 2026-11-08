@@ -1,3 +1,4 @@
+import {entryDateChange,materializeOccurrence} from './entry-occurrence.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -16,3 +17,22 @@ test('paying a future recurrence today preserves its original month and never re
 test('batch payments use their real date, retain invoice and occurrence, and reject duplicate confirmation',async()=>{const{db,sql}=device();try{await db.contas.add({...account,cartoes:[{id:'C',nome:'Cartão',fechamento:25,vencimento:5}]});const id=await db.lancamentos.add({contaId:'A',descricao:'Compra',data:'2026-12-01',tipo:'despesa',natureza:'variavel',categoria:'Outros',status:'previsto',valorCentavos:5000,cartaoId:'C',faturaMes:'2027-01'});const target=(await db.lancamentos.get(id))!;await confirmBatch(db,'A',[target],'2026-11-07');const row=(await db.lancamentos.get(id))!;assert.equal(row.data,'2026-11-07');assert.equal(row.dataPrevista,'2026-12-01');assert.equal(row.faturaMes,'2027-01');assert.equal(row.status,'confirmado');assert.match(row.horario!,/^\d{2}:\d{2}$/);await assert.rejects(confirmBatch(db,'A',[target],'2026-11-07'));validateSnapshot(await db.snapshot());}finally{sql.close();}});
 test('a closed actual payment month prevents the entire batch and preserves all planned dates',async()=>{const{db,sql}=device();try{await db.contas.add(account);await db.lancamentos.bulkAdd([1,2].map(n=>({contaId:'A',descricao:'Parcela '+n,data:'2026-12-01',tipo:'despesa' as const,natureza:'variavel' as const,categoria:'Outros',status:'previsto' as const,valorCentavos:5000})));await db.fechamentos.add({id:'A:2026-11',contaId:'A',mes:'2026-11',fechadoEm:'2026-11-30'});const before=await db.snapshot();await assert.rejects(confirmBatch(db,'A',before.lancamentos,'2026-11-07'),/fechado/);assert.deepEqual(await db.snapshot(),before);}finally{sql.close();}});
 test('new entry time is stored once while imported historical times remain absent or unchanged',async()=>{const{db,sql}=device();try{await db.contas.add(account);const base={contaId:'A',descricao:'Nova',data:'2026-11-07',tipo:'despesa' as const,natureza:'variavel' as const,categoria:'Outros',status:'confirmado' as const,valorCentavos:1000};const id=await db.lancamentos.add(base),time=(await db.lancamentos.get(id))!.horario;assert.match(time!,/^\d{2}:\d{2}$/);await db.lancamentos.update(id,{descricao:'Editada'});assert.equal((await db.lancamentos.get(id))!.horario,time);await db.lancamentos.add({...base,id:100,horario:'11:59'});await db.lancamentos.add({...base,id:101});const snapshot=validateSnapshot(await db.snapshot());assert.equal(snapshot.lancamentos.find(e=>e.id===100)!.horario,'11:59');assert.equal(snapshot.lancamentos.find(e=>e.id===101)!.horario,undefined);}finally{sql.close();}});
+
+test('editing a projected recurrence and confirming the real date replaces the same occurrence, including a changed invoice month',async()=>{
+ for(const useCard of [false,true]){const{db,sql}=device();try{
+  const cards=useCard?[{id:'C',nome:'Cartão',fechamento:15,vencimento:5}]:[];
+  await db.contas.add({...account,cartoes:cards});await db.recorrencias.add({contaId:'A',descricao:'Internet',valorCentavos:3000,tipo:'despesa',natureza:'fixo',categoria:'Moradia',inicio:'2026-11-21',dia:21,ativa:true,...(useCard?{cartaoId:'C'}:{})});
+  const rec=await db.recorrencias.toArray(),target=projectRecurrences('2026-11','A',rec,[],cards)[0],stored=await materializeOccurrence(db,'A',target);
+  await assert.rejects(materializeOccurrence(db,'A',target),/atualizada/);
+  await db.lancamentos.update(stored.id!,{...entryDateChange(stored,'2026-11-06'),...(useCard?{faturaMes:'2026-11'}:{})});
+  const changed=(await db.lancamentos.get(stored.id!))!;await recordPartialPayment(db,'A',changed,3000,'2026-11-06');
+  const entries=await db.lancamentos.toArray();assert.equal(entries.length,1);assert.equal(entries[0].data,'2026-11-06');assert.equal(entries[0].dataPrevista,'2026-11-21');assert.equal(entries[0].status,'confirmado');
+  assert.equal(projectRecurrences('2026-11','A',rec,entries,cards).length,0);assert.equal(projectRecurrences('2026-12','A',rec,entries,cards).length,1);assert.equal(pendingItems({...account,cartoes:cards},entries,rec,'2026-11').length,0);
+  await assert.rejects(recordPartialPayment(db,'A',changed,3000,'2026-11-08'));assert.equal(await db.lancamentos.count(),1);validateSnapshot(await db.snapshot());
+ }finally{sql.close();}}
+});
+test('moving an already stored plan across months retains its first occurrence through repeated edits and partial payments',async()=>{const{db,sql}=device();try{
+ await db.contas.add(account);const id=await db.lancamentos.add({contaId:'A',descricao:'Internet',data:'2026-11-21',recorrenciaId:1,tipo:'despesa',natureza:'fixo',categoria:'Moradia',status:'previsto',valorCentavos:3000});
+ let row=(await db.lancamentos.get(id))!;await db.lancamentos.update(id,entryDateChange(row,'2026-10-31'));row=(await db.lancamentos.get(id))!;await db.lancamentos.update(id,entryDateChange(row,'2026-10-30'));row=(await db.lancamentos.get(id))!;
+ assert.equal(row.dataPrevista,'2026-11-21');await recordPartialPayment(db,'A',row,1000,'2026-11-06');const entries=await db.lancamentos.toArray();assert.equal(entries.length,2);assert.ok(entries.every(e=>e.parcial?.dataPrevista==='2026-11-21'));assert.equal(entries.find(e=>e.status==='previsto')!.valorCentavos,2000);assert.equal(entries.filter(e=>e.status==='confirmado').reduce((sum,e)=>sum+e.valorCentavos,0),1000);
+ }finally{sql.close();}});

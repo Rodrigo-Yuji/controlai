@@ -9,7 +9,7 @@ export function validatePartialPayments(entries:Lancamento[]){
  for(const e of entries){if(!e.parcial)continue;const p=e.parcial;if(!p.grupo||!['saldo','pagamento'].includes(p.papel)||!validDate(p.dataPrevista)||!validDate(e.data)||!Number.isSafeInteger(e.valorCentavos)||e.valorCentavos<=0||e.gestao||!['previsto','confirmado'].includes(e.status)||(p.papel==='pagamento'&&e.status!=='confirmado'))throw Error('Pagamento parcial inválido.');const key=`${e.contaId}:${p.grupo}`;groups.set(key,[...(groups.get(key)??[]),e]);}
  for(const rows of groups.values()){const sources=rows.filter(e=>e.parcial!.papel==='saldo');if(sources.length!==1)throw Error('Pagamento parcial sem previsão de origem única.');const source=sources[0];if(!Number.isSafeInteger(rows.reduce((sum,e)=>sum+e.valorCentavos,0)))throw Error('Total do grupo parcial inválido.');if(rows.some(e=>e.tipo!==source.tipo||e.parcial!.dataPrevista!==source.parcial!.dataPrevista||e.recorrenciaId!==source.recorrenciaId||e.grupoRecorrencia!==source.grupoRecorrencia||e.parcela?.grupo!==source.parcela?.grupo||e.parcela?.numero!==source.parcela?.numero||e.cartaoId!==source.cartaoId||e.faturaMes!==source.faturaMes))throw Error('Referências do pagamento parcial inconsistentes.');}
 }
-async function guard(tx:Tables,accountId:string,e:Lancamento,date?:string){await ensureOpenMonth(tx,accountId,e.data);if(e.parcial)await ensureOpenMonth(tx,accountId,e.parcial.dataPrevista);if(date)await ensureOpenMonth(tx,accountId,date);}
+async function guard(tx:Tables,accountId:string,e:Lancamento,date?:string){await ensureOpenMonth(tx,accountId,e.data);if(e.parcial)await ensureOpenMonth(tx,accountId,e.parcial.dataPrevista);if(e.dataPrevista)await ensureOpenMonth(tx,accountId,e.dataPrevista);if(date)await ensureOpenMonth(tx,accountId,date);}
 export async function recordPartialPayment(db:Database,accountId:string,target:Lancamento,amount:number,date:string){return db.transaction([db.contas,db.lancamentos,db.recorrencias,db.fechamentos],tx=>recordPartialPaymentIn(tx,accountId,target,amount,date));}
 export async function recordPartialPaymentIn(tx:Tables,accountId:string,target:Lancamento,amount:number,date:string){
  if(!Number.isSafeInteger(amount)||amount<=0||!validDate(date))throw Error('Informe valor e data válidos.');
@@ -22,7 +22,7 @@ export async function recordPartialPaymentIn(tx:Tables,accountId:string,target:L
   await guard(tx,accountId,source,date);if(amount>source.valorCentavos)throw Error('O valor supera o restante previsto.');
   const {id:discarded,...value}=source;void discarded;
   const card=source.cartaoId?account.cartoes?.find(c=>c.id===source.cartaoId):undefined;if(source.cartaoId&&!card)throw Error('Cartão não encontrado.');
-  const metadata=source.parcial??{grupo:crypto.randomUUID(),papel:'saldo' as const,dataPrevista:source.data};
+  const metadata=source.parcial??{grupo:crypto.randomUUID(),papel:'saldo' as const,dataPrevista:source.dataPrevista??source.data};
   const base={...value,...(card?{faturaMes:source.faturaMes||invoiceMonth(metadata.dataPrevista,card)}:{}),parcial:metadata};
   const sourceId=(source.id??0)>0?source.id!:await tx.lancamentos.add({...base});
   if(amount===source.valorCentavos){await tx.lancamentos.update(sourceId,{...base,...(!source.parcial?{parcial:undefined,dataPrevista:source.dataPrevista??source.data}:{}),data:date,horario:horaAtual(),status:'confirmado'});return {remaining:0};}
