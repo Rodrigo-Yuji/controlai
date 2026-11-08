@@ -14,8 +14,8 @@ test('cycle ends the day before next payday and includes spending from next cale
  assert.deepEqual(cycle.semanas.map(s=>[s.inicio,s.fim]),[['2026-11-06','2026-11-08'],['2026-11-09','2026-11-15'],['2026-11-16','2026-11-22'],['2026-11-23','2026-11-29'],['2026-11-30','2026-12-03']]);
  assert.equal(cycle.inicio,'2026-11-06'); assert.equal(cycle.fim,'2026-12-03');
  assert.equal(cycle.semanas.length,5);assert.equal(cycle.semanas.reduce((sum,s)=>sum+s.gasto,0),2000);
- assert.equal(cycle.semanas.reduce((sum,s)=>sum+s.limite,0),10001);
- assert.deepEqual(cycle.semanas.map(s=>s.limite),[1071,2500,2501,2500,1429]);
+ assert.equal(cycle.semanas.reduce((sum,s)=>sum+s.limite+s.excessoAnterior,0),10001);
+ assert.deepEqual(cycle.semanas.map(s=>s.limite),[1071,1571,2501,2500,1429]);
 });
 test('cycles have contiguous nonoverlapping weeks and conserve every cent across years',()=>{
  for(let year=2024;year<=2034;year++)for(let month=1;month<=12;month++){
@@ -27,6 +27,21 @@ test('cycles have contiguous nonoverlapping weeks and conserve every cent across
 });
 test('formats remaining percentages in Portuguese without floating point noise',()=>{
  assert.equal(percentageText(99.46),'99,46');assert.equal(percentageText(Math.round((100-99.46)*100)/100),'0,54');assert.equal(percentageText(100),'100');
+});
+
+test('overspending reduces only subsequent weeks until absorbed, without carrying savings',()=>{
+ const cycle=payCycleWeeks('2026-11',[entry('2026-11-06',{valorCentavos:12000}),entry('2026-11-09',{valorCentavos:1000})],28000);
+ assert.deepEqual(cycle.semanas.map(w=>w.excessoAnterior),[0,9000,3000,0,0]);
+ assert.deepEqual(cycle.semanas.map(w=>w.limite),[3000,-2000,4000,7000,4000]);
+ // A negative allowance remains visible and is not subtracted a second time.
+ assert.equal(cycle.semanas[2].limite-cycle.semanas[2].gasto,4000);
+ assert.equal(payCycleWeeks('2026-12',[entry('2026-11-06',{valorCentavos:12000})],28000).semanas[0].excessoAnterior,0);
+});
+
+test('exact limits, planned expenses and non-variable commitments do not create carryover',()=>{
+ const cycle=payCycleWeeks('2026-11',[entry('2026-11-06',{valorCentavos:3000}),entry('2026-11-07',{valorCentavos:9000,status:'previsto'}),entry('2026-11-07',{valorCentavos:9000,recorrenciaId:1})],28000);
+ assert.ok(cycle.semanas.every(w=>w.excessoAnterior===0));
+ assert.equal(cycle.semanas.reduce((sum,w)=>sum+w.limite,0),28000);
 });
 
 test('daily reference counts actual days including short final weeks and preserves a cent-safe limit',async()=>{

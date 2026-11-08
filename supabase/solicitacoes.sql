@@ -26,7 +26,7 @@ begin
  if p_payload ? 'reembolsoPessoaId' then
   select a into c from public.controlai_vaults v cross join lateral jsonb_array_elements(v.snapshot->'contas') a where v.owner=p_owner and a->>'id'=p_account;
   if c->>'tipo' is distinct from 'gestora' or jsonb_typeof(p_payload->'reembolsoPessoaId') is distinct from 'string' or p_payload->>'tipo' is distinct from 'despesa' or p_payload->>'status' is distinct from 'confirmado' then raise exception 'Compra para reembolso inválida'; end if;
-  select a into person from jsonb_array_elements(coalesce(c->'pessoas','[]'::jsonb)) a where a->>'id'=p_payload->>'reembolsoPessoaId' and coalesce(a->>'inicioMes','0000-01')<=left(p_payload->>'data',7) and coalesce(a->>'fimMes','9999-12')>=left(p_payload->>'data',7);
+  select a into person from jsonb_array_elements(coalesce(c->'pessoas','[]'::jsonb)) a where a->>'id'=p_payload->>'reembolsoPessoaId' and coalesce(a->>'fimMes','9999-12')>=left(p_payload->>'data',7);
   if person is null then raise exception 'Participante não encontrado nesta gestora'; end if;
  end if;
  if (select count(*) from public.controlai_requests where requester=auth.uid() and created_at>now()-interval '1 day')>=20 then raise exception 'Limite diário de solicitações atingido'; end if;
@@ -70,7 +70,7 @@ begin
  if cat is null then raise exception 'Categoria inválida'; end if;
  if r.payload ? 'reembolsoPessoaId' then
   if c->>'tipo' is distinct from 'gestora' or r.payload->>'tipo' is distinct from 'despesa' or r.payload->>'status' is distinct from 'confirmado' then raise exception 'Compra para reembolso inválida';end if;
-  select a into person from jsonb_array_elements(coalesce(c->'pessoas','[]'::jsonb)) a where a->>'id'=r.payload->>'reembolsoPessoaId' and coalesce(a->>'inicioMes','0000-01')<=left(r.payload->>'data',7) and coalesce(a->>'fimMes','9999-12')>=left(r.payload->>'data',7);
+  select a into person from jsonb_array_elements(coalesce(c->'pessoas','[]'::jsonb)) a where a->>'id'=r.payload->>'reembolsoPessoaId' and coalesce(a->>'fimMes','9999-12')>=left(r.payload->>'data',7);
   if person is null then raise exception 'Participante não encontrado nesta gestora';end if;
   purchase_id:='solicitacao:'||r.id::text;
   if exists(select 1 from jsonb_array_elements(coalesce(c->'mercados','[]'::jsonb)) a where a->>'id'=purchase_id or a->>'solicitacaoId'=r.id::text) or exists(select 1 from jsonb_array_elements(coalesce(v.snapshot->'lancamentos','[]'::jsonb)) a where a->>'solicitacaoId'=r.id::text) then raise exception 'Solicitação já registrada';end if;

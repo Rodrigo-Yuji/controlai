@@ -26,11 +26,11 @@ export function payCycleWeeks(month:string, entries:Lancamento[], budgetCentavos
   const [year,number]=month.split('-').map(Number);
   const nextMonth=iso(new Date(Date.UTC(year,number,1))).slice(0,7);
   const end=iso(advance(new Date(`${salaryPayday(nextMonth)}T00:00:00Z`),-1));
-  const weeks:{inicio:string;fim:string;gasto:number;limite:number}[]=[];
+  const weeks:{inicio:string;fim:string;gasto:number;limite:number;excessoAnterior:number}[]=[];
   for(let current=new Date(`${start}T00:00:00Z`);iso(current)<=end;) {
     const inicio=iso(current),sunday=iso(advance(current,(7-current.getUTCDay())%7)),fim=sunday<end?sunday:end;
     const gasto=entries.filter(entry=>entry.status==='confirmado'&&entry.tipo==='despesa'&&!isMonthlyCommitment(entry)&&entry.data>=inicio&&entry.data<=fim).reduce((sum,entry)=>sum+entry.valorCentavos,0);
-    weeks.push({inicio,fim,gasto,limite:0});
+    weeks.push({inicio,fim,gasto,limite:0,excessoAnterior:0});
     current=advance(new Date(`${fim}T00:00:00Z`),1);
   }
   const budget=Math.max(0,Math.round(budgetCentavos));
@@ -41,6 +41,13 @@ export function payCycleWeeks(month:string, entries:Lancamento[], budgetCentavos
     daysPassed+=Math.round((Date.parse(week.fim)-Date.parse(week.inicio))/86400000)+1;
     const cumulative=Number(BigInt(budget)*BigInt(daysPassed)/BigInt(totalDays));
     week.limite=cumulative-allocated;allocated=cumulative;
+  }
+  // Only overspending carries forward. Unspent allowances stay in their week.
+  let excess=0;
+  for(const week of weeks){
+    week.excessoAnterior=excess;
+    week.limite-=excess;
+    excess=Math.max(0,week.gasto-week.limite);
   }
   return {inicio:start,fim:end,semanas:weeks};
 }
