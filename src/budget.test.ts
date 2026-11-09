@@ -1,3 +1,4 @@
+import {limitUsageText} from './budget.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {isMonthlyCommitment,monthlyFixedBudget} from './budget.ts';
@@ -18,4 +19,8 @@ test('handles missing income without Infinity or an invented percentage',()=>{
  assert.deepEqual(monthlyFixedBudget([entry({recorrenciaId:1})],0),{totalCentavos:10000,percentage:null});
  assert.deepEqual(monthlyFixedBudget([],100000),{totalCentavos:0,percentage:0});
  assert.equal(isMonthlyCommitment(entry({natureza:'fixo'})),false);
+});
+
+test('limit percentages show actual consumption including overspending and zero limits',()=>{
+ assert.equal(limitUsageText(30000,50000),'60% utilizado');assert.equal(limitUsageText(60000,50000),'120% utilizado');assert.equal(limitUsageText(1,300),'0,33% utilizado');assert.equal(limitUsageText(0,0),'0% utilizado');assert.equal(limitUsageText(100,0),'Limite zero excedido');
 });

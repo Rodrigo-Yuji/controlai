@@ -1,3 +1,4 @@
+import {hoje} from './utils.ts';
 import type { Lancamento } from './db.ts';
 import { isMonthlyCommitment } from './budget.ts';
 const iso = (date: Date) => date.toISOString().slice(0,10);
@@ -21,16 +22,16 @@ export function salaryPayday(month:string):string{
  const due=new Date(`${fifthBusinessDay(month)}T00:00:00Z`);
  return iso(due.getUTCDay()===6?advance(due,-1):due);
 }
-export function payCycleWeeks(month:string, entries:Lancamento[], budgetCentavos:number) {
+export function payCycleWeeks(month:string, entries:Lancamento[], budgetCentavos:number,today=hoje()) {
   const start=salaryPayday(month);
   const [year,number]=month.split('-').map(Number);
   const nextMonth=iso(new Date(Date.UTC(year,number,1))).slice(0,7);
   const end=iso(advance(new Date(`${salaryPayday(nextMonth)}T00:00:00Z`),-1));
-  const weeks:{inicio:string;fim:string;gasto:number;limite:number;excessoAnterior:number}[]=[];
+  const weeks:{inicio:string;fim:string;gasto:number;limite:number;limiteBase:number;saldoAnterior:number;excessoAnterior:number}[]=[];
   for(let current=new Date(`${start}T00:00:00Z`);iso(current)<=end;) {
     const inicio=iso(current),sunday=iso(advance(current,(7-current.getUTCDay())%7)),fim=sunday<end?sunday:end;
     const gasto=entries.filter(entry=>entry.status==='confirmado'&&entry.tipo==='despesa'&&!isMonthlyCommitment(entry)&&entry.data>=inicio&&entry.data<=fim).reduce((sum,entry)=>sum+entry.valorCentavos,0);
-    weeks.push({inicio,fim,gasto,limite:0,excessoAnterior:0});
+    weeks.push({inicio,fim,gasto,limite:0,limiteBase:0,saldoAnterior:0,excessoAnterior:0});
     current=advance(new Date(`${fim}T00:00:00Z`),1);
   }
   const budget=Math.max(0,Math.round(budgetCentavos));
@@ -40,14 +41,17 @@ export function payCycleWeeks(month:string, entries:Lancamento[], budgetCentavos
   for(const week of weeks){
     daysPassed+=Math.round((Date.parse(week.fim)-Date.parse(week.inicio))/86400000)+1;
     const cumulative=Number(BigInt(budget)*BigInt(daysPassed)/BigInt(totalDays));
-    week.limite=cumulative-allocated;allocated=cumulative;
+    week.limiteBase=cumulative-allocated;week.limite=week.limiteBase;allocated=cumulative;
   }
-  // Only overspending carries forward. Unspent allowances stay in their week.
-  let excess=0;
+  // Savings become available only when their week has ended. Excess spending
+  // continues to reduce later allowances immediately, without double counting.
+  let carry=0;
   for(const week of weeks){
-    week.excessoAnterior=excess;
-    week.limite-=excess;
-    excess=Math.max(0,week.gasto-week.limite);
+    week.saldoAnterior=carry;
+    week.excessoAnterior=Math.max(0,-carry);
+    week.limite+=carry;
+    const remaining=week.limite-week.gasto;
+    carry=week.fim<today?remaining:Math.min(0,remaining);
   }
   return {inicio:start,fim:end,semanas:weeks};
 }

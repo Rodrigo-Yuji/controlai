@@ -13,3 +13,9 @@ export function monthlyFixedBudget(entries: Lancamento[], baseCentavos: number, 
   const percentage = baseCentavos > 0 ? Math.round(totalCentavos / baseCentavos * 10000) / 100 : null;
   return { totalCentavos, percentage };
 }
+
+export function limitUsageText(spent:number,limit:number){
+ if(limit<=0&&spent>0)return 'Limite zero excedido';
+ const percent=limit>0?spent/limit*100:0;
+ return new Intl.NumberFormat('pt-BR',{maximumFractionDigits:2}).format(percent)+'% utilizado';
+}
