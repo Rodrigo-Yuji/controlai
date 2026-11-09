@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {createSqliteDatabase,type SqlDriver} from './storage/sqlite.ts';
-import {recordPartialPayment,reopenPartialBalance} from './partial-payments.ts';
+import {recordFullPayment,recordPartialPayment,reopenPartialBalance} from './partial-payments.ts';
 import {confirmBatch} from './batch-payments.ts';
 import {projectRecurrences} from './finance.ts';
 import {pendingItems,balanceForecast} from './insights.ts';
@@ -41,4 +41,17 @@ test('explicit reference survives SQLite partial payments, full settlement and s
  await db.contas.add(account);const id=await db.lancamentos.add({contaId:'A',descricao:'Água',valorCentavos:10000,tipo:'despesa',natureza:'fixo',categoria:'Moradia',status:'previsto',data:'2026-11-13',competencia:'2026-11'});
  await recordPartialPayment(db,'A',(await db.lancamentos.get(id))!,4000,'2026-10-28');await recordPartialPayment(db,'A',(await db.lancamentos.get(id))!,6000,'2026-12-03');
  const saved=validateSnapshot(await db.snapshot());assert.ok(saved.lancamentos.every(e=>e.competencia==='2026-11'));const{financialReports}=await import('./reporting.ts');assert.equal(financialReports(saved.lancamentos,account,'2026-11').expense,10000);assert.equal(financialReports(saved.lancamentos,account,'2026-10','pagamento').expense,4000);assert.equal(financialReports(saved.lancamentos,account,'2026-12','pagamento').expense,6000);
+ }finally{sql.close();}});
+
+test('settling a variable recurrence accepts higher or lower final amounts without changing future estimates',async()=>{
+ for(const amount of[2500,4500])for(const tipo of['despesa','receita']as const)for(const card of[false,true]){const{db,sql}=device();try{
+ const cartoes=card?[{id:'C',nome:'Cartão',fechamento:25,vencimento:5}]:[];await db.contas.add({...account,cartoes});await db.recorrencias.add({contaId:'A',descricao:'Valor estimado',valorCentavos:3000,tipo,natureza:'fixo',categoria:'Moradia',inicio:'2026-11-21',dia:21,ativa:true,...(card?{cartaoId:'C'}:{})});
+ const rec=await db.recorrencias.toArray(),target=projectRecurrences('2026-11','A',rec,[],cartoes)[0];assert.equal((await recordFullPayment(db,'A',target,amount,'2026-10-28')).remaining,0);const rows=await db.lancamentos.toArray();assert.equal(rows.length,1);assert.equal(rows[0].status,'confirmado');assert.equal(rows[0].valorCentavos,amount);assert.equal(rows[0].data,'2026-10-28');assert.equal(rows[0].dataPrevista,'2026-11-21');assert.equal(projectRecurrences('2026-11','A',rec,rows,cartoes).length,0);assert.equal(projectRecurrences('2026-12','A',rec,rows,cartoes)[0].valorCentavos,3000);assert.equal((await db.recorrencias.toArray())[0].valorCentavos,3000);await assert.rejects(recordFullPayment(db,'A',target,amount,'2026-10-28'));assert.equal(await db.lancamentos.count(),1);validateSnapshot(await db.snapshot());
+ }finally{sql.close();}}
+});
+test('full settlement can adjust only the remaining balance while preserving earlier partial payments',async()=>{const{db,sql}=device();try{
+ await db.contas.add(account);const id=await db.lancamentos.add({contaId:'A',descricao:'Água',data:'2026-11-13',tipo:'despesa',natureza:'fixo',categoria:'Moradia',status:'previsto',valorCentavos:3000,competencia:'2026-11'});await recordPartialPayment(db,'A',(await db.lancamentos.get(id))!,1000,'2026-11-06');await recordFullPayment(db,'A',(await db.lancamentos.get(id))!,1600,'2026-11-08');const rows=await db.lancamentos.toArray();assert.equal(rows.length,2);assert.ok(rows.every(e=>e.status==='confirmado'));assert.equal(rows.find(e=>e.parcial?.papel==='pagamento')!.valorCentavos,1000);assert.equal(rows.reduce((sum,e)=>sum+e.valorCentavos,0),2600);validateSnapshot(await db.snapshot());
+ }finally{sql.close();}});
+test('invalid or stale full settlements and closed months leave the original estimate untouched',async()=>{const{db,sql}=device();try{
+ await db.contas.add(account);const id=await db.lancamentos.add({contaId:'A',descricao:'Energia',data:'2026-11-13',tipo:'despesa',natureza:'fixo',categoria:'Moradia',status:'previsto',valorCentavos:3000});const target=(await db.lancamentos.get(id))!,before=await db.snapshot();for(const value of[0,-1,1.5,Infinity])await assert.rejects(recordFullPayment(db,'A',target,value,'2026-11-08'));await assert.rejects(recordFullPayment(db,'A',target,4000,'2026-02-31'));await assert.rejects(recordFullPayment(db,'B',target,4000,'2026-11-08'));assert.deepEqual(await db.snapshot(),before);await db.lancamentos.update(id,{valorCentavos:3500});await assert.rejects(recordFullPayment(db,'A',target,4000,'2026-11-08'));assert.equal((await db.lancamentos.get(id))!.valorCentavos,3500);await db.fechamentos.add({id:'A:2026-11',contaId:'A',mes:'2026-11',fechadoEm:'now'});await assert.rejects(recordFullPayment(db,'A',(await db.lancamentos.get(id))!,4000,'2026-11-08'),/fechado/);assert.equal((await db.lancamentos.get(id))!.status,'previsto');assert.equal((await db.lancamentos.get(id))!.valorCentavos,3500);
  }finally{sql.close();}});

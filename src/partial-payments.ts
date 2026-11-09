@@ -12,21 +12,22 @@ export function validatePartialPayments(entries:Lancamento[]){
 }
 async function guard(tx:Tables,accountId:string,e:Lancamento,date?:string){await ensureOpenMonth(tx,accountId,e.data);await ensureOpenMonth(tx,accountId,referenceMonth(e));if(e.parcial)await ensureOpenMonth(tx,accountId,e.parcial.dataPrevista);if(e.dataPrevista)await ensureOpenMonth(tx,accountId,e.dataPrevista);if(date)await ensureOpenMonth(tx,accountId,date);}
 export async function recordPartialPayment(db:Database,accountId:string,target:Lancamento,amount:number,date:string){return db.transaction([db.contas,db.lancamentos,db.recorrencias,db.fechamentos],tx=>recordPartialPaymentIn(tx,accountId,target,amount,date));}
-export async function recordPartialPaymentIn(tx:Tables,accountId:string,target:Lancamento,amount:number,date:string){
+export async function recordFullPayment(db:Database,accountId:string,target:Lancamento,amount:number,date:string){return db.transaction([db.contas,db.lancamentos,db.recorrencias,db.fechamentos],tx=>recordPartialPaymentIn(tx,accountId,target,amount,date,true));}
+export async function recordPartialPaymentIn(tx:Tables,accountId:string,target:Lancamento,amount:number,date:string,settle=false){
  if(!Number.isSafeInteger(amount)||amount<=0||!validDate(date))throw Error('Informe valor e data válidos.');
   const account=await tx.contas.get(accountId);if(!account)throw Error('Conta não encontrada.');const entries=await tx.lancamentos.where('contaId').equals(accountId).toArray();let source:Lancamento|undefined;
   if((target.id??0)<0){source=projectRecurrences(target.data.slice(0,7),accountId,await tx.recorrencias.where('contaId').equals(accountId).toArray(),entries,account.cartoes).find(e=>e.id===target.id&&e.data===target.data);if(source&&account.tipo==='gestora')source={...source,cartaoId:undefined,faturaMes:undefined};}
   else source=entries.find(e=>e.id===target.id);
   if(!source||source.status!=='previsto'||source.gestao||source.parcial?.papel==='pagamento')throw Error('A previsão foi alterada. Atualize a lista e tente novamente.');
   if(!validDate(source.data)||!Number.isSafeInteger(source.valorCentavos)||source.valorCentavos<=0)throw Error('Data ou valor da previsão inválido.');
-  if(source.valorCentavos!==target.valorCentavos||source.data!==target.data||source.tipo!==target.tipo||source.categoria!==target.categoria||source.cartaoId!==target.cartaoId)throw Error('O valor ou a data da previsão mudou. Reabra o pagamento.');
-  await guard(tx,accountId,source,date);if(amount>source.valorCentavos)throw Error('O valor supera o restante previsto.');
+  if(source.valorCentavos!==target.valorCentavos||source.data!==target.data||source.tipo!==target.tipo||source.categoria!==target.categoria||source.cartaoId!==target.cartaoId||source.faturaMes!==target.faturaMes||source.competencia!==target.competencia||source.dataPrevista!==target.dataPrevista)throw Error('O valor ou a data da previsão mudou. Reabra o pagamento.');
+  await guard(tx,accountId,source,date);if(!settle&&amount>source.valorCentavos)throw Error('O valor supera o restante previsto.');
   const {id:discarded,...value}=source;void discarded;
   const card=source.cartaoId?account.cartoes?.find(c=>c.id===source.cartaoId):undefined;if(source.cartaoId&&!card)throw Error('Cartão não encontrado.');
   const metadata=source.parcial??{grupo:crypto.randomUUID(),papel:'saldo' as const,dataPrevista:source.dataPrevista??source.data};
-  const base={...value,...(card?{faturaMes:source.faturaMes||invoiceMonth(metadata.dataPrevista,card)}:{}),parcial:metadata};
+  const base={...value,valorCentavos:settle?amount:source.valorCentavos,...(card?{faturaMes:source.faturaMes||invoiceMonth(metadata.dataPrevista,card)}:{}),parcial:metadata};
   const sourceId=(source.id??0)>0?source.id!:await tx.lancamentos.add({...base});
-  if(amount===source.valorCentavos){await tx.lancamentos.update(sourceId,{...base,...(!source.parcial?{parcial:undefined,dataPrevista:source.dataPrevista??source.data}:{}),data:date,horario:horaAtual(),status:'confirmado'});return {remaining:0};}
+  if(settle||amount===source.valorCentavos){await tx.lancamentos.update(sourceId,{...base,...(!source.parcial?{parcial:undefined,dataPrevista:source.dataPrevista??source.data}:{}),data:date,horario:horaAtual(),status:'confirmado'});return {remaining:0};}
   await tx.lancamentos.update(sourceId,{...base,valorCentavos:source.valorCentavos-amount});
   await tx.lancamentos.add({...base,valorCentavos:amount,data:date,horario:horaAtual(),status:'confirmado',parcial:{...metadata,papel:'pagamento'}});
   return {remaining:source.valorCentavos-amount};
