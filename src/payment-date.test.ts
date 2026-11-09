@@ -36,3 +36,9 @@ test('moving an already stored plan across months retains its first occurrence t
  let row=(await db.lancamentos.get(id))!;await db.lancamentos.update(id,entryDateChange(row,'2026-10-31'));row=(await db.lancamentos.get(id))!;await db.lancamentos.update(id,entryDateChange(row,'2026-10-30'));row=(await db.lancamentos.get(id))!;
  assert.equal(row.dataPrevista,'2026-11-21');await recordPartialPayment(db,'A',row,1000,'2026-11-06');const entries=await db.lancamentos.toArray();assert.equal(entries.length,2);assert.ok(entries.every(e=>e.parcial?.dataPrevista==='2026-11-21'));assert.equal(entries.find(e=>e.status==='previsto')!.valorCentavos,2000);assert.equal(entries.filter(e=>e.status==='confirmado').reduce((sum,e)=>sum+e.valorCentavos,0),1000);
  }finally{sql.close();}});
+
+test('explicit reference survives SQLite partial payments, full settlement and snapshot restore',async()=>{const{db,sql}=device();try{
+ await db.contas.add(account);const id=await db.lancamentos.add({contaId:'A',descricao:'Água',valorCentavos:10000,tipo:'despesa',natureza:'fixo',categoria:'Moradia',status:'previsto',data:'2026-11-13',competencia:'2026-11'});
+ await recordPartialPayment(db,'A',(await db.lancamentos.get(id))!,4000,'2026-10-28');await recordPartialPayment(db,'A',(await db.lancamentos.get(id))!,6000,'2026-12-03');
+ const saved=validateSnapshot(await db.snapshot());assert.ok(saved.lancamentos.every(e=>e.competencia==='2026-11'));const{financialReports}=await import('./reporting.ts');assert.equal(financialReports(saved.lancamentos,account,'2026-11').expense,10000);assert.equal(financialReports(saved.lancamentos,account,'2026-10','pagamento').expense,4000);assert.equal(financialReports(saved.lancamentos,account,'2026-12','pagamento').expense,6000);
+ }finally{sql.close();}});

@@ -38,6 +38,7 @@ export function validateFinancialReferences(accounts:Conta[],entries:Lancamento[
   if(entry.cartaoId&&!byId.get(entry.contaId??'')?.cartoes?.some(c=>c.id===entry.cartaoId))throw Error('Lançamento com cartão de outra conta ou inexistente.');
  }
  for(const entry of entries){
+  if(entry.competencia!==undefined&&(typeof entry.competencia!=='string'||!/^\d{4}-(0[1-9]|1[0-2])$/.test(entry.competencia)))throw Error('Mês de referência inválido.');
   if(entry.dataPrevista!==undefined&&!validDate(entry.dataPrevista))throw Error('Data prevista original inválida.');
   if(entry.horario!==undefined&&(typeof entry.horario!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(entry.horario)))throw Error('Horário de lançamento inválido.');
   const movement=entry.gestao;if(!movement)continue;const account=byId.get(entry.contaId??'');
