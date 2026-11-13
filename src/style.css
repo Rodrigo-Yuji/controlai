@@ -208,3 +208,16 @@ html[data-theme="escuro"] .danger-button{background:#bd2438;color:#fff}
 .request-notice{position:fixed;right:16px;top:calc(90px + env(safe-area-inset-top));z-index:60;display:flex;align-items:flex-start;gap:12px;width:min(440px,calc(100vw - 32px));box-sizing:border-box;padding:16px;border:1px solid #8ddbc3;border-radius:18px;background:#f2fcf8;color:#153d32;box-shadow:0 12px 40px #092e352b}.request-notice>div{flex:1;min-width:0}.request-notice p{margin:6px 0}.request-notice .button-row{gap:8px;flex-wrap:wrap}.request-notice button{font-size:13px}.request-notice small{display:block;margin-top:8px}html[data-theme=escuro] .request-notice{background:#17382f;color:#edfdf7;border-color:#367b65}
 
 .history-records{display:grid;gap:12px}.history-record{min-width:0;border:1px solid #dce4ef;border-radius:14px;padding:14px}.history-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.history-heading>div{min-width:0}.history-record small{display:block;color:#75869d;margin:5px 0;overflow-wrap:anywhere}.history-record strong{overflow-wrap:anywhere}.history-badge{font-size:12px;border-radius:20px;background:#edf3ff;color:#2257c9;padding:5px 9px;white-space:nowrap}.history-excluido{background:#fff0f0;color:#ad2d43}.history-restaurado{background:#e5f8ef;color:#11764e}.history-record details{margin-top:10px}.history-record summary{cursor:pointer;font-size:13px}.history-record dl{margin:10px 0 0;display:grid;gap:10px}.history-record dt{font-size:12px;color:#75869d}.history-record dd{margin:3px 0 0;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.history-record .button-row{align-items:center;margin-top:12px;gap:10px}html[data-theme=escuro] .history-record{border-color:#3a4e6c}html[data-theme=escuro] .history-record small,html[data-theme=escuro] .history-record dt{color:#a9b8ce}html[data-theme=escuro] .history-badge{background:#263c60;color:#c4dbff}html[data-theme=escuro] .history-excluido{background:#542d3b;color:#ffd3dc}html[data-theme=escuro] .history-restaurado{background:#214b3d;color:#b2f2d4}
+
+.settings-page > .searchbox { margin-bottom: 20px; }
+.settings-group > h3 { margin: 22px 0 10px; }
+.settings-group:not(:has(.settings-section:not([hidden]))),
+.settings-page:has(.settings-section:not([hidden])) .settings-no-results,
+.settings-section[hidden] { display: none; }
+.guide-dialog { color: inherit; margin: auto; max-width: calc(100% - 24px); }
+.guide-dialog::backdrop { background: rgba(10, 20, 40, .6); }
+.guide-dialog .sectiontitle { flex-wrap: wrap; gap: 8px; }
+.guide-dialog .sectiontitle h2 { margin: 0; }
+.demo-content { margin: 16px 0; }
+.demo-record { flex-wrap: wrap; }
+.demo-record .recordbody { min-width: 145px; }
