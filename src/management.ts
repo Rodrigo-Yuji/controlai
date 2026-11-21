@@ -2,6 +2,7 @@ import {validDate} from './assistant.ts';
 import {validateControlStart} from './control-start.ts';
 import {validatePartialPayments} from './partial-payments.ts';
 import {validateCoupleBudget} from './couple-budget.ts';
+import {validateFamilyLoans} from './family-loans.ts';
 import type {CompraMercado,Conta,Lancamento,PessoaGestora} from './db.ts';
 export function contributionTarget(person:PessoaGestora,month:string){
  if(month<person.inicioMes||(person.fimMes&&month>person.fimMes))return 0;
@@ -22,6 +23,7 @@ export function marketPaid(entries:Lancamento[],purchaseId:string,personId:strin
 }
 export function validateManagement(account:Conta){
  validateCoupleBudget(account);
+ validateFamilyLoans(account);
  validateControlStart(account.inicioControle);
  if(account.lembretes){const c=account.lembretes;if(typeof c.ativo!=='boolean'||![c.antecedenciaDias,c.hora,c.contribuicaoDia,c.reembolsoDias].every(Number.isInteger)||c.antecedenciaDias<0||c.antecedenciaDias>30||c.hora<0||c.hora>23||c.contribuicaoDia<1||c.contribuicaoDia>31||c.reembolsoDias<0||c.reembolsoDias>60)throw Error('Preferências de lembretes inválidas.');}
  if(account.cor!==undefined&&(typeof account.cor!=='string'||!/^#[\da-f]{6}$/i.test(account.cor)))throw Error('Cor da conta inválida.');

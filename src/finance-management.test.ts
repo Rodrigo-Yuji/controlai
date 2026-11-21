@@ -30,6 +30,13 @@ test('legacy solo/couple accounts remain compatible and management validates ref
  assert.equal(accountType({id:'A',nome:'A',conjunta:false,padrao:true}),'solo');assert.equal(accountType({id:'A',nome:'A',conjunta:true,padrao:true}),'casal');assert.throws(()=>validateManagement({id:'A',nome:'A',conjunta:false,padrao:true,mercados:[purchase()]}),/inexistente/);
 });
 
+test('family loans stay linked to the couple account and never exceed the original amount',()=>{
+ const loan={id:'L',pessoa:'Ana',data:'2026-11-20',valorCentavos:15000,devolucoes:[{id:'D',data:'2026-11-21',valorCentavos:5000}]};
+ assert.doesNotThrow(()=>validateManagement({id:'C',nome:'Casa',tipo:'casal',conjunta:true,padrao:true,emprestimosFamiliares:[loan]}));
+ assert.throws(()=>validateManagement({id:'S',nome:'Solo',tipo:'solo',conjunta:false,padrao:true,emprestimosFamiliares:[loan]}),/Casal/);
+ assert.throws(()=>validateManagement({id:'C',nome:'Casa',tipo:'casal',conjunta:true,padrao:true,emprestimosFamiliares:[{...loan,devolucoes:[...loan.devolucoes,{id:'D2',data:'2026-11-22',valorCentavos:10001}]}]}),/ultrapassam/);
+});
+
 test('person market summary aggregates items while keeping both payment directions separate',()=>{
  const management=purchase(),personal={...purchase('Ana'),id:'M2'};const ana=personMarketBalance([management,personal],[],'Ana');assert.deepEqual(ana,{pessoais:4000,receber:2000,recebido:0,pagar:8000,pago:0});assert.equal(personMarketBalance([management,personal],[],'Bia').receber,2000);
 });

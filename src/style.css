@@ -221,3 +221,4 @@ html[data-theme="escuro"] .danger-button{background:#bd2438;color:#fff}
 .demo-content { margin: 16px 0; }
 .demo-record { flex-wrap: wrap; }
 .demo-record .recordbody { min-width: 145px; }
+.family-loans{margin-top:18px}.family-loan{align-items:start;flex-wrap:wrap}.family-loan-repayment{display:grid;grid-template-columns:minmax(110px,1fr) minmax(130px,1fr) auto;gap:8px;flex:1 1 100%;align-items:end}.family-loan-repayment input{min-width:0}@media(max-width:540px){.family-loan-repayment{grid-template-columns:1fr}.family-loan-repayment button{width:100%}}
