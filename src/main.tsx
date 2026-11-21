@@ -6,6 +6,7 @@ const confirmation=['signup','email_change','invite'].includes(authHash.get('typ
 const Root=React.lazy(()=>confirmation?import('./AuthConfirmation'):authHash.get('type')==='recovery'||authHash.has('error')?import('./RecoveryPage'):import('./WorkspaceRoot'));
 import { Capacitor } from '@capacitor/core';
 import './style.css';
+import './theme.css';
 import { registerSW } from 'virtual:pwa-register';
 if (!Capacitor.isNativePlatform()) registerSW({ immediate: true });
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><React.Suspense fallback={<StartupScreen/>}><Root/></React.Suspense></React.StrictMode>);
