@@ -7,7 +7,9 @@ export interface Recorrencia { contaId?: string; id?: number; descricao: string;
 export interface Salario { id: string; contaId?: string; titular?: string; liquido: number; refeicao: number; beneficio: number; adicional: number; }
 export interface PlanejamentoMensal {valoresDistribuicao?:{variaveis:number;reserva:number};mes:string;baseReceita:'atual'|'prevista';baseCentavos:number;fixosCentavos:number;variaveisCentavos:number;reservaCentavos:number;fixos:number;variaveis:number;reserva:number;travadoEm:string}
 export interface Configuracao {valoresDistribuicao?:{variaveis:number;reserva:number}; planejamentos?:PlanejamentoMensal[]; id: string; contaId?: string; baseReceita?: 'atual'|'prevista'; fixos: number; variaveis: number; reserva: number; }
-export interface Reserva { contaId?: string; id?: number; descricao: string; valorCentavos: number; data: string; }
+export interface Reserva { contaId?: string; id?: number; descricao: string; valorCentavos: number; data: string; emprestimoId?: string; devolucaoId?: string; }
+export interface DevolucaoEmprestimo { id: string; data: string; valorCentavos: number; }
+export interface EmprestimoReserva { id: string; pessoa: string; data: string; valorCentavos: number; observacao?: string; devolucoes: DevolucaoEmprestimo[]; }
 export interface Fechamento { id: string; contaId: string; mes: string; fechadoEm: string; }
 export interface Parcela { grupo: string; numero: number; total: number; }
 export type TipoConta='solo'|'casal'|'gestora';
@@ -19,7 +21,7 @@ export interface MovimentoGestao {tipo:'contribuicao'|'compraMercado'|'reembolso
 export interface DistribuicaoCasal {valorPessoalCentavos?:number;mes:string;totalCentavos:number;comumCentavos:number;pessoais:[number,number];percentuaisPessoais?:[number,number];percentualPessoal?:number;confirmadaEm:string}
 export interface TransferenciaPessoal {id:string;titular:1|2;data:string;valorCentavos:number}
 export interface InicioControle {data:string;saldoCentavos:number;configuradoEm:string}
-export interface Conta {inicioControle?:InicioControle; atividades?:unknown[]; lembretes?:{ativo:boolean;antecedenciaDias:number;hora:number;contribuicaoDia:number;reembolsoDias:number}; pagamentosFatura?:{id:string;cartaoId:string;mes:string;data:string;valorCentavos:number}[]; valorPessoalCasalCentavos?:number; id: string; nome: string; conjunta: boolean; padrao: boolean; tipo?:TipoConta; cor?:string; percentualPessoalCasal?:number; percentuaisPessoaisCasal?:[number,number]; distribuicoesCasal?:DistribuicaoCasal[]; transferenciasPessoais?:TransferenciaPessoal[]; cartoes?:Cartao[]; pessoas?:PessoaGestora[]; mercados?:CompraMercado[]; }
+export interface Conta {inicioControle?:InicioControle; atividades?:unknown[]; lembretes?:{ativo:boolean;antecedenciaDias:number;hora:number;contribuicaoDia:number;reembolsoDias:number}; pagamentosFatura?:{id:string;cartaoId:string;mes:string;data:string;valorCentavos:number}[]; valorPessoalCasalCentavos?:number; id: string; nome: string; conjunta: boolean; padrao: boolean; tipo?:TipoConta; cor?:string; percentualPessoalCasal?:number; percentuaisPessoaisCasal?:[number,number]; distribuicoesCasal?:DistribuicaoCasal[]; transferenciasPessoais?:TransferenciaPessoal[]; emprestimosReserva?:EmprestimoReserva[]; cartoes?:Cartao[]; pessoas?:PessoaGestora[]; mercados?:CompraMercado[]; }
 export { db, initializeStorage, storageKind } from './storage/index';
 export const categoriasDespesa = ['Moradia','Alimentação','Transporte','Saúde','Educação','Lazer','Assinaturas','Pets','Compras','Outros'];
 export const categoriasReceita = ['Salário','Freelance','Rendimentos','Reembolso','Outras receitas'];
