@@ -3,7 +3,7 @@
 App de controle financeiro (PWA + Android). Contas **Solo**, **Casal** e **Gestora**. Responda e escreva textos da interface em **português do Brasil**.
 
 ## Stack
-- React 19 + TypeScript + Vite, PWA (`vite-plugin-pwa`), gráficos com Recharts.
+- React 19 + TypeScript + Vite, PWA (`vite-plugin-pwa`), gráficos com Recharts. Visual: `src/style.css` + camada `src/theme.css` (variáveis de cor; mobile-first).
 - Dados locais: **Dexie/IndexedDB** no navegador e **SQLite** (`@capacitor-community/sqlite`) no Android via Capacitor 8 (pacote `com.controlai.app`).
 - Sincronização opcional com **Supabase** (login por e-mail).
 
@@ -18,7 +18,7 @@ App de controle financeiro (PWA + Android). Contas **Solo**, **Casal** e **Gesto
 - Em `db.transaction([...tabelas], async tx => ...)` use sempre `tx` dentro do callback, nunca `db`.
 - `Conta` é um documento com listas embutidas (`distribuicoesCasal`, `transferenciasPessoais`, `emprestimosReserva`, `cartoes`, `pessoas`, `mercados`...). Campo novo em `Conta` ou nos registros não exige tabela nova.
 - Valores em **centavos inteiros**. Datas `YYYY-MM-DD`, meses `YYYY-MM`. Mês fechado bloqueia alterações: use `ensureOpenMonth` (`src/account-guards.ts`).
-- Regras do casal: `src/couple-budget.ts`, `CoupleBudgetPanel.tsx`. Empréstimos da reserva: `src/reserve-loans.ts` e `ReserveLoansPanel.tsx`. Saldo: `registeredBalance` em `src/account-balance.ts`.
+- Regras do casal: `src/couple-budget.ts`, `CoupleBudgetPanel.tsx`. Empréstimos da reserva: `src/reserve-loans.ts` e `ReserveLoansPanel.tsx`. Gasto avulso da reserva: `src/reserve-spending.ts` (linha de `reservas` com `gasto: true`, reduz o total, não o saldo corrente). Saldo: `registeredBalance` em `src/account-balance.ts`.
 - Dados vindos de backup ou sincronização são validados em `src/sync/snapshot.ts` (`validateSnapshot` → `validateManagement` e `validateFinancialReferences`). Regra nova sobre a conta entra em `validateManagement`.
 
 ## Supabase
@@ -41,4 +41,4 @@ App de controle financeiro (PWA + Android). Contas **Solo**, **Casal** e **Gesto
 ## Cuidados
 - Os dados do usuário ficam no aparelho. Antes de mudar formato de dados, migração ou backup, avise para exportar o backup JSON em Ajustes e nunca apague dados sem pedido explícito.
 - Peça confirmação antes de: apagar dados, mudar o Supabase, publicar no Pages ou gerar release.
-- Empréstimos e devoluções da reserva não são despesas e não entram no orçamento variável nem nos relatórios.
+- Empréstimos, devoluções e gastos avulsos da reserva não são lançamentos e não entram no orçamento variável nem nos relatórios.

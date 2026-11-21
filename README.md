@@ -194,3 +194,17 @@ Gestora com pessoas, contribuições mensais e divisão dos itens pessoais do me
 Veja [o guia com exemplos e regras de acerto](docs/GESTORA-E-CARTOES.md).
 Esses dados usam os documentos existentes da conta e dos lançamentos, preservando
 SQLite, backups e sincronização, sem criar novas tabelas no Supabase.
+
+### Gasto avulso da reserva e visual 2.0
+
+Em **Orçamento → Reserva financeira** (ou pelo atalho **Gastar da reserva** no Início),
+registre uma despesa paga direto com a reserva. O valor sai da reserva e do saldo total,
+mas **não** vira lançamento: não consome o orçamento variável, as semanas, os fixos nem os
+relatórios de gastos, e o saldo corrente do mês não muda. A categoria é opcional e serve só
+como referência. Use **Resgatar** quando o dinheiro voltar para o saldo do mês e for gasto
+como despesa normal. Excluir o gasto devolve o valor à reserva. Não exige SQL no Supabase:
+o movimento viaja no snapshot existente (`reservas`, campo `gasto: true`).
+
+O visual 2.0 (`src/theme.css`, carregado depois de `style.css`) usa azul-marinho e verde da
+marca, cartões arredondados, números tabulares, navegação inferior flutuante e atalhos no
+Início, com tema escuro e áreas de toque de 44 px pensadas para o APK.
