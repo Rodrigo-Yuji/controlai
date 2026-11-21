@@ -119,7 +119,7 @@ function makeTable<N extends TableName>(name: N, access: Access): StorageTable<R
     }),
     bulkDelete: ids => access(name, true, async session => { for (const id of ids) await session.run(`DELETE FROM ${identifier(name)} WHERE id = ?`, [id]); }),
     update: (id, changes) => access(name, true, session => update(session, id, changes)),
-    delete: id => access(name, true, async session => { await session.run(`DELETE FROM ${identifier(name)} WHERE id = ?`, [id]); }),
+    delete: id => access(name, true, async session => {const row=await get(session,id);if(name==='reservas'&&typeof (row as Records['reservas']|undefined)?.emprestimoId==='string')throw Error('O movimento da reserva pertence a um empréstimo e não pode ser excluído aqui.');await session.run(`DELETE FROM ${identifier(name)} WHERE id = ?`, [id]); }),
     clear: () => access(name, true, async session => { await session.run(`DELETE FROM ${identifier(name)}`); }),
     where: index => ({equals: value => {
       if ((index === 'contaId' || index === 'id') && (typeof value === 'string' || typeof value === 'number')) return collection(undefined, {column:index === 'contaId' ? 'conta_id' : 'id', value});

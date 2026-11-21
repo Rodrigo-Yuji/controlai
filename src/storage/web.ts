@@ -18,7 +18,7 @@ function table<T, K>(source: Table<T, K>): StorageTable<T, K> {
     toArray: () => source.toArray(), get: id => source.get(id), count: () => source.count(),
     add: row => source.add(stamp(row)), put: row => source.put(row), bulkAdd: rows => source.bulkAdd(rows.map(stamp)),
     bulkDelete: ids => source.bulkDelete([...ids]), update: (id, changes) => source.update(id, changes as UpdateSpec<T>),
-    delete: id => source.delete(id), clear: () => source.clear(),
+    delete: async id => {const row=await source.get(id);if(source.name==='reservas'&&typeof (row as {emprestimoId?:unknown}|undefined)?.emprestimoId==='string')throw Error('O movimento da reserva pertence a um empréstimo e não pode ser excluído aqui.');return source.delete(id);}, clear: () => source.clear(),
     where: index => ({ equals: value => collection(source.where(index).equals(value as string | number)) }),
     filter: predicate => collection(source.filter(predicate)), toCollection: () => collection(source.toCollection()),
   };
