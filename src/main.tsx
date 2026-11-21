@@ -5,6 +5,7 @@ const authHash=new URLSearchParams(window.location.hash.slice(1));
 const confirmation=['signup','email_change','invite'].includes(authHash.get('type')||'')||authHash.get('error_code')==='otp_expired';
 const Root=React.lazy(()=>confirmation?import('./AuthConfirmation'):authHash.get('type')==='recovery'||authHash.has('error')?import('./RecoveryPage'):import('./WorkspaceRoot'));
 import { Capacitor } from '@capacitor/core';
+import '@fontsource-variable/manrope';
 import './style.css';
 import './theme.css';
 import { registerSW } from 'virtual:pwa-register';

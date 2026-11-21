@@ -208,3 +208,12 @@ o movimento viaja no snapshot existente (`reservas`, campo `gasto: true`).
 O visual 2.0 (`src/theme.css`, carregado depois de `style.css`) usa azul-marinho e verde da
 marca, cartões arredondados, números tabulares, navegação inferior flutuante e atalhos no
 Início, com tema escuro e áreas de toque de 44 px pensadas para o APK.
+
+### Empréstimos antigos, observações e nova identidade
+
+Em **Empréstimos da reserva** (logo abaixo de Reserva financeira), marque **Emprestado antes
+de usar o ControlAI** para registrar uma dívida antiga: ela não sai da reserva nem do saldo,
+mas as devoluções entram na reserva normalmente. Observações aceitam quebras de linha e
+aparecem em até duas linhas, com **ver mais**. A logo (`public/icons/logo.svg`), os ícones
+PWA/Android e as telas de abertura são gerados por `scripts/generate-icons.mjs`; a fonte
+Manrope fica embutida no app (`@fontsource-variable/manrope`) e funciona offline.

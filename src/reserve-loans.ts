@@ -33,6 +33,7 @@ export function validateReserveLoans(account:Conta){
   if(!person||person.length>MAX_LOAN_PERSON_LENGTH)throw Error('Informe quem recebeu o empréstimo (até 60 caracteres).');
   if(!positiveCents(loan.valorCentavos)||!validDate(loan.data))throw Error('Empréstimo com valor ou data inválidos.');
   if(loan.observacao!==undefined&&(typeof loan.observacao!=='string'||loan.observacao.length>200))throw Error('Observação do empréstimo inválida.');
+  if(loan.anterior!==undefined&&loan.anterior!==true)throw Error('Marcação de empréstimo anterior inválida.');
   if(!Array.isArray(loan.devolucoes))throw Error('Devoluções do empréstimo inválidas.');
   let repaid=0;
   for(const repayment of loan.devolucoes){
@@ -60,11 +61,12 @@ export const totalOutstanding=(loans:readonly EmprestimoReserva[]=[],through='99
 
 // Money lent and not yet returned has left the account: it reduces the total
 // balance by exactly what it takes out of the reserve, so the spendable balance
-// (total minus reserve) is unchanged by a loan or a repayment.
+// (total minus reserve) is unchanged by a loan or a repayment. A loan made before
+// the app (`anterior`) never left the recorded money, so only its repayments count.
 export function netLent(loans:readonly EmprestimoReserva[]=[],through:string,from?:string){
  let total=0;
  for(const loan of loans){
-  if(loan.data<=through&&(!from||loan.data>=from))total+=loan.valorCentavos;
+  if(!loan.anterior&&loan.data<=through&&(!from||loan.data>=from))total+=loan.valorCentavos;
   for(const r of loan.devolucoes)if(r.data<=through&&(!from||r.data>=from))total-=r.valorCentavos;
  }
  return total;
@@ -92,7 +94,9 @@ async function save(tx:Pick<Database,'contas'>,account:Conta,loans:EmprestimoRes
 }
 const reserveRows=(tx:Pick<Database,'reservas'>,accountId:string)=>tx.reservas.where('contaId').equals(accountId).toArray();
 
-export interface NewLoan{pessoa:string;valorCentavos:number;data:string;observacao?:string}
+// `anterior`: money lent before using the app. It is tracked as a debt but never
+// leaves the reserve; repayments still go to the reserve.
+export interface NewLoan{pessoa:string;valorCentavos:number;data:string;observacao?:string;anterior?:boolean}
 export async function lendFromReserve(db:Store,accountId:string,input:NewLoan,newId:()=>string=()=>crypto.randomUUID()){
  const pessoa=normalizePerson(input.pessoa),observacao=input.observacao?.trim();
  if(!pessoa||pessoa.length>MAX_LOAN_PERSON_LENGTH)throw Error('Informe quem recebeu o empréstimo (até 60 caracteres).');
@@ -101,11 +105,11 @@ export async function lendFromReserve(db:Store,accountId:string,input:NewLoan,ne
  return db.transaction(stores(db),async tx=>{
   const account=await coupleAccount(tx,accountId);
   await ensureOpenMonth(tx,accountId,input.data);
-  const rows=await reserveRows(tx,accountId);
-  if(!reserveStaysNonNegative([...rows,{data:input.data,valorCentavos:-input.valorCentavos}]))throw Error('Saldo da reserva insuficiente para este empréstimo.');
-  const loan:EmprestimoReserva={id:newId(),pessoa,valorCentavos:input.valorCentavos,data:input.data,...(observacao?{observacao}:{}),devolucoes:[]};
+  if(!input.anterior){const rows=await reserveRows(tx,accountId);
+  if(!reserveStaysNonNegative([...rows,{data:input.data,valorCentavos:-input.valorCentavos}]))throw Error('Saldo da reserva insuficiente para este empréstimo. Se o empréstimo foi feito antes de usar o ControlAI, marque essa opção.');}
+  const loan:EmprestimoReserva={id:newId(),pessoa,valorCentavos:input.valorCentavos,data:input.data,...(observacao?{observacao}:{}),devolucoes:[],...(input.anterior?{anterior:true as const}:{})};
   await save(tx,account,[...(account.emprestimosReserva??[]),loan]);
-  await tx.reservas.add({contaId:accountId,descricao:`Empréstimo para ${pessoa}`,valorCentavos:-input.valorCentavos,data:input.data,emprestimoId:loan.id});
+  if(!input.anterior)await tx.reservas.add({contaId:accountId,descricao:`Empréstimo para ${pessoa}`,valorCentavos:-input.valorCentavos,data:input.data,emprestimoId:loan.id});
   return loan;
  });
 }
