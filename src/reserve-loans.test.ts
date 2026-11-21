@@ -106,3 +106,18 @@ test('account validation, backups and sync snapshots carry loans and reject corr
  const db=await seed();await lendFromReserve(db,'A',{pessoa:'Ana',valorCentavos:100,data:'2026-11-03'});
  const snapshot=validateSnapshot(await db.snapshot());assert.equal(snapshot.contas[0].emprestimosReserva?.length,1);assert.equal(snapshot.reservas.some(r=>r.emprestimoId),true);
 });
+test('a loan made before the app is tracked without touching the reserve; repayments still fill it',async()=>{
+ const db=await seed(),next=ids();
+ await assert.rejects(lendFromReserve(db,'A',{pessoa:'Cunhado',valorCentavos:500000,data:'2025-03-10'},next),/insuficiente/);
+ const loan=await lendFromReserve(db,'A',{pessoa:'Cunhado',valorCentavos:500000,data:'2025-03-10',anterior:true},next);
+ assert.equal(loan.anterior,true);assert.equal(await reserveTotal(db),100000);assert.equal(await db.lancamentos.count(),0);
+ const account=(await db.contas.get('A'))!,reserves=await db.reservas.toArray();
+ const before=registeredBalance([income],reserves,[],'2026-11');
+ const withLoan=registeredBalance([income],reserves,[],'2026-11',undefined,account.emprestimosReserva);
+ assert.deepEqual(withLoan,before);assert.equal(totalOutstanding(account.emprestimosReserva),500000);
+ await registerLoanRepayment(db,'A',loan.id,{valorCentavos:20000,data:'2026-11-05'},next);
+ const account2=(await db.contas.get('A'))!,after=registeredBalance([income],await db.reservas.toArray(),[],'2026-11',undefined,account2.emprestimosReserva);
+ assert.equal(after.reserve,before.reserve+20000);assert.equal(after.total,before.total+20000);assert.equal(after.current,before.current);
+ assert.equal(totalOutstanding(account2.emprestimosReserva),480000);
+ assert.throws(()=>validateReserveLoans({...account2,emprestimosReserva:[{...account2.emprestimosReserva![0],anterior:'sim' as unknown as true}]}),/anterior/);
+});

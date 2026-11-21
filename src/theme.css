@@ -91,3 +91,51 @@ html[data-theme="escuro"] .floating{color:#06231a}
 .quick-actions button:active:not(:disabled){transform:scale(.97)}
 html[data-theme="escuro"] .quick-actions button{background:var(--card);color:var(--ink);border-color:var(--line)}
 #reserva-panel{scroll-margin-top:84px}
+
+/* Observações: quebras de linha preservadas, visual compacto */
+.note-block{min-width:0}
+.note-body{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12.5px;line-height:1.45;color:var(--muted-ink)}
+.note-clamped{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden}
+.note-toggle{border:0;background:none;padding:2px 0;color:var(--brand);font-size:12px;font-weight:700;min-height:28px}
+html[data-theme="escuro"] .note-toggle{color:var(--brand-strong)}
+.card-note{margin-top:4px}
+.recordnote.note-block{padding:6px 10px;border-left:3px solid color-mix(in srgb,var(--brand) 45%,transparent);background:color-mix(in srgb,var(--brand) 5%,transparent);border-radius:0 10px 10px 0}
+.recordnote .note-body{color:var(--muted-ink)}
+textarea.note-input,.fields textarea{min-height:64px;line-height:1.45;field-sizing:content;max-height:220px}
+.loan-before{display:flex;align-items:flex-start;gap:10px;font-weight:600}
+.loan-before input{width:20px;height:20px;min-height:0;margin-top:2px;accent-color:var(--brand)}
+.loan-before small{display:block;font-weight:400;color:var(--muted-ink);margin-top:2px}
+
+/* Fonte: Manrope (variável, embutida no app — funciona offline e no APK) */
+body,button,input,select,textarea{font-family:"Manrope Variable",Manrope,Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+.hero h2,.pageheading h1,.panel h3,.brand strong{font-weight:800}
+
+/* Cabeçalho 2.0 */
+.top{gap:10px}
+.brand{gap:10px;min-width:0}
+.brandicon{width:38px!important;height:38px!important;border-radius:11px!important;background:transparent!important;box-shadow:0 4px 12px #0b18282e!important;overflow:hidden}
+.brand strong{font-size:19px;letter-spacing:-.03em;line-height:1}
+.brand strong::after{content:"";display:inline-block;width:6px;height:6px;margin-left:3px;border-radius:50%;background:#2fd39a;vertical-align:baseline}
+.brand small{color:var(--muted-ink);font-size:11px;margin-top:3px}
+.periodwrap{display:flex;align-items:center;gap:0!important;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--card);box-shadow:0 1px 2px #0f1b2d0d}
+.periodwrap .montharrow{min-width:34px!important;min-height:34px!important;border:0!important;border-radius:999px;background:transparent!important;color:var(--ink)}
+.periodwrap .montharrow:active{background:var(--brand-soft)!important}
+.periodo{color:var(--ink);font-weight:700;font-size:13.5px;padding:0 4px}
+.periodo svg{color:var(--brand)}
+html[data-theme="escuro"] .periodwrap{background:var(--card);border-color:var(--line)}
+html[data-theme="escuro"] .periodo{color:var(--ink)}
+.header-account-selector select,.accountbar select{border-radius:999px!important;border:1px solid var(--line)!important;background:var(--card)!important;color:var(--ink)!important;font-weight:700;padding-left:14px}
+.accountbar label{font-size:0;gap:0}
+.accountbar label::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--account-dot,var(--brand));margin-right:8px;flex-shrink:0}
+.accountbar select{font-size:14px;max-width:none}
+.mobile-account-selector{flex:1;min-width:0}
+.mobile-account-selector label{width:100%}
+.mobile-account-selector select{width:100%}
+.eyebrow{text-transform:none;font-weight:600;color:var(--muted-ink)}
+.eyebrow::first-letter{text-transform:uppercase}
+.top.account-colored-header .periodwrap{background:transparent;border-color:color-mix(in srgb,var(--account-ink) 40%,transparent)}
+.top.account-colored-header .periodwrap .montharrow,.top.account-colored-header .periodo{color:var(--account-ink)}
+@media(max-width:370px){.brand strong{font-size:16px}.brandicon{width:32px!important;height:32px!important}}
+.periodwrap .periodo,.periodwrap .periodo input{border:0!important;background:transparent!important;box-shadow:none!important}
+.money-visual-card{background:color-mix(in srgb,var(--ink) 3%,var(--card));border-color:var(--line)}
+html[data-theme="escuro"] .money-visual-card{background:color-mix(in srgb,#fff 4%,var(--card));border-color:var(--line)}
