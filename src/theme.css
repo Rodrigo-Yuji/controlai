@@ -139,3 +139,10 @@ html[data-theme="escuro"] .periodo{color:var(--ink)}
 .periodwrap .periodo,.periodwrap .periodo input{border:0!important;background:transparent!important;box-shadow:none!important}
 .money-visual-card{background:color-mix(in srgb,var(--ink) 3%,var(--card));border-color:var(--line)}
 html[data-theme="escuro"] .money-visual-card{background:color-mix(in srgb,#fff 4%,var(--card));border-color:var(--line)}
+
+/* Devolução de gasto */
+.fields label.refund-check{align-items:flex-start;gap:10px;padding:11px 12px;border:1px dashed var(--line,#dce3ee);border-radius:12px;background:var(--card,#fff)}
+.fields label.refund-check input{margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:var(--brand,#0d7a5f)}
+.refund-check>span{display:flex;flex-direction:column;gap:3px}.refund-check small{font-weight:400;color:var(--muted-ink,#63728b);line-height:1.45}
+.record small.refund-tag{display:inline-block;margin-top:5px;padding:2px 8px;border-radius:20px;background:#e7f5ee;color:#0d7a5f;font-weight:600}
+html[data-theme="escuro"] .record small.refund-tag{background:#0d7a5f33;color:#6fd3ad}

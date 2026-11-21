@@ -1,6 +1,7 @@
 import {validatePlanning} from '../planning.ts';
 import {validateFinancialReferences,validateManagement} from '../management.ts';
 import {validateReserveRow} from '../reserve-spending.ts';
+import {validateExpenseRefund} from '../expense-refund.ts';
 import {TABLE_NAMES,NUMERIC_TABLES, type Records, type TableName, type Tables} from '../storage/types.ts';
 export type Snapshot = {[N in TableName]:Records[N][]};
 export function withoutHistory(snapshot:Snapshot):Snapshot{return {...snapshot,contas:snapshot.contas.map(account=>{const clean={...account};delete clean.atividades;return clean;})};}
@@ -30,6 +31,7 @@ export function validateSnapshot(value:unknown):Snapshot {
       const key=String(row.id);if(ids.has(key))throw Error(`Identificador repetido em ${name}.`);ids.add(key);
       if(name==='configuracoes')validatePlanning(row as Records['configuracoes']);
       if(name==='reservas')validateReserveRow(row as Records['reservas']);
+      if(name==='lancamentos')validateExpenseRefund(row as Records['lancamentos']);
       if(name==='contas'){validateManagement(row as Records['contas']);accounts.add(key);}
     }
   }
