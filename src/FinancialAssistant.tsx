@@ -9,7 +9,7 @@ import { commandDraft, detectColumns, draftError, fingerprint, MAX_ROWS, parseCs
 
 import { detectPlanLayout, inferSheetMonth, monthlyPlanDrafts, type PlanResult } from './monthly-plan';
 
-interface Props { mode:'import'|'voice'; conta: Conta; categorias: Categoria[]; registros: Lancamento[]; fechamentos: Fechamento[] }
+interface Props { mode:'import'|'voice'; conta: Conta; categorias: Categoria[]; registros: Lancamento[]; fechamentos: Fechamento[]; onClose?: () => void }
 interface SpeechResult { isFinal: boolean; 0: { transcript: string } }
 interface Speech {
   lang: string; continuous: boolean; interimResults: boolean;
@@ -28,8 +28,7 @@ function excelCell(value: unknown): Cell {
   return value instanceof Date || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : null;
 }
 
-export default function Assistant({ mode, conta, categorias, registros, fechamentos }: Props) {
-  const [voiceOpen,setVoiceOpen]=useState(false);
+export default function Assistant({ mode, conta, categorias, registros, fechamentos, onClose }: Props) {
   const [sheets, setSheets] = useState<{name: string; rows: Cell[][]}[]>([]);
   const [sheetIndex, setSheetIndex] = useState(0);
   const [columns, setColumns] = useState<Columns>(detectColumns([]));
@@ -71,6 +70,9 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
     fileRequest.current++; voiceRequest.current++;
     if (speech.current) { speech.current.onend = null; speech.current.onerror = null; speech.current.onresult = null; speech.current.abort(); }
   }, []);
+  // O modo voz abre já ouvindo: ele só é montado quando a pessoa toca em "Lançar por voz" no novo lançamento.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (mode === 'voice') void startVoice(); }, []);
 
   function chooseSheet(loaded: {name:string; rows:Cell[][]}[], index: number) {
     setSheetIndex(index); setColumns(detectColumns(loaded[index].rows[0] ?? []));
@@ -278,6 +280,6 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
     </section>}
     {mode==='import'&&<p className="muted">A importação adiciona lançamentos; ela não restaura nem substitui o banco. Para um backup completo, use Backup e restauração.</p>}
   </div>;
-  function closeVoice(){voiceRequest.current++;if(speech.current){speech.current.onresult=null;speech.current.onerror=null;speech.current.onend=null;speech.current.abort();speech.current=null;}setListening(false);setVoiceOpen(false);setCommand('');setDrafts([]);setError('');setMessage('');setMicrophoneBlocked(false);}
-  return mode==='import'?content:<><button type="button" className="floating voice-floating" aria-label="Registrar lançamento por voz" title="Registrar lançamento por voz" onClick={()=>{setVoiceOpen(true);void startVoice();}}><Mic size={25}/></button>{voiceOpen&&<div className="overlay voice-overlay"><section className="dialog voice-dialog" role="dialog" aria-modal="true" aria-label="Lançamento por voz"><div className="sectiontitle"><h2>Lançamento por voz</h2><button type="button" className="textbutton" disabled={saving} onClick={closeVoice}>Fechar</button></div>{content}</section></div>}</>;
+  function closeVoice(){voiceRequest.current++;if(speech.current){speech.current.onresult=null;speech.current.onerror=null;speech.current.onend=null;speech.current.abort();speech.current=null;}setListening(false);onClose?.();}
+  return mode==='import'?content:<div className="overlay voice-overlay"><section className="dialog voice-dialog" role="dialog" aria-modal="true" aria-label="Lançamento por voz"><div className="sectiontitle"><h2>Lançamento por voz</h2><button type="button" className="textbutton" disabled={saving} onClick={closeVoice}>Fechar</button></div>{content}</section></div>;
 }
