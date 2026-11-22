@@ -170,3 +170,7 @@ html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad
 .loan-record.settled .loan-progress{display:none}.loan-record.settled .loan-record-head{margin-bottom:2px}
 .loan-person .loan-record small{margin-top:2px}.loan-person .loan-record small .textbutton{padding:0 4px;font-size:11px}
 .loan-person .loan-record .button-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}.loan-person .loan-record .button-row button{margin:0}.loan-record.settled .button-row .textbutton{padding:2px 0;font-size:12px}
+/* Botão flutuante único (Início e Lançamentos), alinhado à borda direita do conteúdo */
+.floating{right:max(18px,calc((100% - 1020px)/2 + 18px))}
+@media(max-width:700px){.floating{right:max(16px,calc((100% - 520px)/2 + 14px))}}
+.dialog-head-actions{display:flex;align-items:center;gap:6px}.voice-entry{width:32px;height:32px;min-width:32px;min-height:32px;padding:0;border-radius:50%;color:var(--brand)}
