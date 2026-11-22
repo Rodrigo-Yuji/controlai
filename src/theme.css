@@ -147,3 +147,12 @@ html[data-theme="escuro"] .money-visual-card{background:color-mix(in srgb,#fff 4
 .record small.refund-tag{display:inline-block;margin-top:5px;padding:2px 8px;border-radius:20px;background:#e7f5ee;color:#0d7a5f;font-weight:600}
 html[data-theme="escuro"] .record small.refund-tag{background:#0d7a5f33;color:#6fd3ad}
 .loan-extra-hint{color:var(--brand,#0d7a5f)!important;font-weight:600}
+/* Empréstimos: status visual */
+.loan-counts{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px}
+.loan-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;flex-shrink:0}
+.loan-badge.settled{background:#dff7e9;color:#187d4b}.loan-badge.open{background:#ffeaed;color:#c23c48}.loan-badge.partial{background:#fff3d5;color:#9d6800}
+.loan-person{border-left:4px solid #db4d58}.loan-person.settled{border-left-color:#12986e}
+.loan-person-head,.loan-record-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.loan-person-head h4{margin:0}
+.loan-record.settled .loan-record-head strong{color:var(--muted-ink,#63728b);text-decoration:line-through;text-decoration-thickness:1px}
+.loan-progress{height:6px;border-radius:10px;background:#ffeaed;overflow:hidden;margin:7px 0 4px}.loan-progress>span{display:block;height:100%;background:#e9a528;border-radius:10px}.loan-record.settled .loan-progress{background:#dff7e9}.loan-record.settled .loan-progress>span{background:#12986e}
+html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad}html[data-theme="escuro"] .loan-badge.open{background:#db4d5833;color:#ff9aa3}html[data-theme="escuro"] .loan-badge.partial{background:#e9a52833;color:#f4c86a}html[data-theme="escuro"] .loan-progress{background:#ffffff1a}

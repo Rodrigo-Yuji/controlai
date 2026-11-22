@@ -12,7 +12,7 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
  const [person,setPerson]=useState(''),[value,setValue]=useState(''),[date,setDate]=useState(hoje()),[note,setNote]=useState(''),[before,setBefore]=useState(false);
  const [repaying,setRepaying]=useState<string|null>(null),[repayValue,setRepayValue]=useState(''),[repayDate,setRepayDate]=useState(hoje());
  const loans=account.emprestimosReserva??[],people=loansByPerson(loans),outstanding=totalOutstanding(loans);
- const reserveBalance=reserves.reduce((sum,r)=>sum+r.valorCentavos,0);
+ const reserveBalance=reserves.reduce((sum,r)=>sum+r.valorCentavos,0),openCount=loans.filter(l=>loanOutstanding(l)>0).length;
  async function work(fn:()=>Promise<void>){if(busy)return;setBusy(true);setError('');try{await fn();}catch(reason){setError(reason instanceof Error?reason.message:'Não foi possível salvar.');}finally{setBusy(false);}}
  async function lend(e:React.FormEvent){
   e.preventDefault();
@@ -43,12 +43,14 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
     <label className="check loan-before"><input type="checkbox" checked={before} onChange={e=>setBefore(e.target.checked)}/><span>Emprestado antes de usar o ControlAI<small>Registra só a dívida, sem tirar da reserva. As devoluções entram na reserva normalmente.</small></span></label>
     <button className="primary" disabled={!before&&reserveBalance<=0}>{before?'Registrar empréstimo antigo':'Registrar empréstimo'}</button>
    </form>
-   {people.length===0?<p className="muted">Nenhum empréstimo registrado.</p>:people.map(p=><div className="panel" key={p.pessoa}>
-    <h4>{p.pessoa}</h4>
-    <p>Deve agora: <strong className={p.pendenteCentavos>0?'red':'green'}>{moeda(p.pendenteCentavos)}</strong><br/><small className="muted">Emprestado {moeda(p.emprestadoCentavos)} · Devolvido {moeda(p.devolvidoCentavos)}{p.acrescimoCentavos>0?` · Acréscimo ${moeda(p.acrescimoCentavos)}`:''}</small></p>
-    {p.emprestimos.map(loan=>{const remaining=loanOutstanding(loan);return <div className="record" key={loan.id}><div className="recordbody">
-     <strong>{moeda(loan.valorCentavos)} em {dataBR(loan.data)}</strong>
-     <small>{remaining>0?`Em aberto: ${moeda(remaining)}`:'Quitado'}{loan.anterior?' · Anterior ao app':''}</small>{loan.observacao&&<NoteText className="card-note" text={loan.observacao}/>}
+   {loans.length>0&&<div className="loan-counts"><span className="loan-badge open">{openCount} em aberto</span><span className="loan-badge settled">{loans.length-openCount} quitado{loans.length-openCount===1?'':'s'}</span></div>}
+   {people.length===0?<p className="muted">Nenhum empréstimo registrado.</p>:people.map(p=><div className={`panel loan-person ${p.pendenteCentavos>0?'open':'settled'}`} key={p.pessoa}>
+    <div className="loan-person-head"><h4>{p.pessoa}</h4><LoanBadge remaining={p.pendenteCentavos} repaid={p.devolvidoCentavos}/></div>
+    <p>{p.pendenteCentavos>0?<>Deve agora: <strong className="red">{moeda(p.pendenteCentavos)}</strong></>:<strong className="green">Nada pendente</strong>}<br/><small className="muted">Emprestado {moeda(p.emprestadoCentavos)} · Devolvido {moeda(p.devolvidoCentavos)}{p.acrescimoCentavos>0?` · Acréscimo ${moeda(p.acrescimoCentavos)}`:''}</small></p>
+    {[...p.emprestimos].sort((a,b)=>Number(loanOutstanding(b)>0)-Number(loanOutstanding(a)>0)).map(loan=>{const remaining=loanOutstanding(loan),repaid=loan.valorCentavos-remaining;return <div className={`record loan-record ${remaining>0?'open':'settled'}`} key={loan.id}><div className="recordbody">
+     <div className="loan-record-head"><strong>{moeda(loan.valorCentavos)} em {dataBR(loan.data)}</strong><LoanBadge remaining={remaining} repaid={repaid}/></div>
+     <div className="loan-progress" role="progressbar" aria-label="Quanto já foi devolvido" aria-valuemin={0} aria-valuemax={loan.valorCentavos} aria-valuenow={repaid}><span style={{width:`${Math.min(100,repaid/loan.valorCentavos*100)}%`}}/></div>
+     <small>{remaining>0?`Falta ${moeda(remaining)} · devolvido ${moeda(repaid)}`:`Devolvido ${moeda(repaid)} de ${moeda(loan.valorCentavos)}`}{loan.anterior?' · Anterior ao app':''}</small>{loan.observacao&&<NoteText className="card-note" text={loan.observacao}/>}
      {loan.devolucoes.map(r=><small key={r.id}>{r.valorCentavos>0?`Devolução de ${moeda(r.valorCentavos)}`:'Valor extra'}{repaymentExtra(r)>0?` + acréscimo de ${moeda(repaymentExtra(r))}`:''} em {dataBR(r.data)} <button type="button" className="textbutton" onClick={()=>void deleteRepayment(loan.id,r.id)}>Excluir devolução</button></small>)}
      {repaying===loan.id?<form className="fields" onSubmit={e=>void repay(e,loan.id)}>
       <label>{remaining>0?'Valor devolvido (R$)':'Valor extra recebido (R$)'}<MoneyInput autoFocus selectOnFocus required min="0.01" value={repayValue} onChange={setRepayValue}/><RepaymentHint remaining={remaining} received={paraCentavos(repayValue)}/></label>
@@ -56,7 +58,7 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
       <button className="primary">Registrar devolução na reserva</button>
       <button type="button" className="secondary" onClick={()=>{setRepaying(null);setError('');}}>Cancelar</button>
      </form>:<div className="button-row">
-      <button type="button" className="secondary" onClick={()=>startRepayment(loan.id,remaining)}>{remaining>0?'Registrar devolução':'Registrar valor extra'}</button>
+      {remaining>0?<button type="button" className="secondary" onClick={()=>startRepayment(loan.id,remaining)}>Registrar devolução</button>:<button type="button" className="textbutton" onClick={()=>startRepayment(loan.id,remaining)}>Registrar valor extra</button>}
       {loan.devolucoes.length===0&&<button type="button" className="textbutton" onClick={()=>void deleteLoan(loan.id,loan.anterior)}>Excluir empréstimo</button>}
      </div>}
     </div></div>;})}
@@ -71,4 +73,10 @@ function RepaymentHint({remaining,received}:{remaining:number;received:number}){
  const valid=Number.isSafeInteger(received)&&received>0,split=splitRepayment(remaining,valid?received:0);
  if(!valid||split.acrescimoCentavos<=0)return <small>Se a pessoa devolver mais do que o pendente, o excedente entra na reserva como acréscimo.</small>;
  return <small className="loan-extra-hint">{split.valorCentavos>0?`${moeda(split.valorCentavos)} quitam o empréstimo e `:''}{moeda(split.acrescimoCentavos)} entram como acréscimo na reserva.</small>;
+}
+
+// Status pill: Quitado (green), Parcial (amber, something already returned) or Em aberto (red).
+function LoanBadge({remaining,repaid}:{remaining:number;repaid:number}){
+ if(remaining<=0)return <span className="loan-badge settled">✓ Quitado</span>;
+ return <span className={`loan-badge ${repaid>0?'partial':'open'}`}>{repaid>0?'Parcial':'Em aberto'}</span>;
 }
