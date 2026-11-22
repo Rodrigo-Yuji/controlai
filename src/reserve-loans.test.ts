@@ -37,16 +37,41 @@ test('spendable balance is unchanged by loans and repayments, total follows the 
  assert.equal(part.current,before.current);assert.equal(part.reserve,before.reserve-20000);assert.equal(part.total,before.total-20000);
  const early=registeredBalance([income],reserves2,[],'2026-11-10',undefined,account2.emprestimosReserva);assert.equal(early.reserve,before.reserve-30000);
 });
-test('repayments go back to the reserve, cannot exceed the debt and settle the loan',async()=>{
+test('repayments go back to the reserve and settle the loan; anything above the debt is an extra',async()=>{
  const db=await seed(),next=ids();const loan=await lendFromReserve(db,'A',{pessoa:'Ana',valorCentavos:30000,data:'2026-11-03'},next);
- await assert.rejects(registerLoanRepayment(db,'A',loan.id,{valorCentavos:30001,data:'2026-11-10'},next),/ultrapassa/);
  await assert.rejects(registerLoanRepayment(db,'A',loan.id,{valorCentavos:100,data:'2026-11-02'},next),/anterior/);
  await registerLoanRepayment(db,'A',loan.id,{valorCentavos:12000,data:'2026-11-10'},next);
  assert.equal(await reserveTotal(db),82000);
- await assert.rejects(registerLoanRepayment(db,'A',loan.id,{valorCentavos:18001,data:'2026-11-11'},next),/ultrapassa/);
- await registerLoanRepayment(db,'A',loan.id,{valorCentavos:18000,data:'2026-11-11'},next);
- const account=(await db.contas.get('A'))!;assert.equal(loanOutstanding(account.emprestimosReserva![0]),0);assert.equal(await reserveTotal(db),100000);
- await assert.rejects(registerLoanRepayment(db,'A',loan.id,{valorCentavos:1,data:'2026-11-12'},next),/ultrapassa/);
+ const r=await registerLoanRepayment(db,'A',loan.id,{valorCentavos:20000,data:'2026-11-11'},next);
+ assert.equal(r.valorCentavos,18000);assert.equal(r.acrescimoCentavos,2000);
+ const account=(await db.contas.get('A'))!;assert.equal(loanOutstanding(account.emprestimosReserva![0]),0);assert.equal(await reserveTotal(db),102000);
+ assert.match((await db.reservas.toArray()).at(-1)!.descricao,/acréscimo/);
+ const extra=await registerLoanRepayment(db,'A',loan.id,{valorCentavos:500,data:'2026-11-12'},next);
+ assert.equal(extra.valorCentavos,0);assert.equal(extra.acrescimoCentavos,500);assert.equal(await reserveTotal(db),102500);
+ const summary=loansByPerson((await db.contas.get('A'))!.emprestimosReserva)[0];
+ assert.equal(summary.devolvidoCentavos,30000);assert.equal(summary.pendenteCentavos,0);assert.equal(summary.acrescimoCentavos,2500);
+ await removeLoanRepayment(db,'A',loan.id,r.id);assert.equal(await reserveTotal(db),82500);assert.equal(loanOutstanding((await db.contas.get('A'))!.emprestimosReserva![0]),18000);
+});
+test('an extra on the repayment raises reserve and total but not the spendable balance',async()=>{
+ const db=await seed(),next=ids();const loan=await lendFromReserve(db,'A',{pessoa:'Ana',valorCentavos:30000,data:'2026-11-03'},next);
+ const before=registeredBalance([income],[{contaId:'A',descricao:'Guardado',valorCentavos:100000,data:'2026-10-01'}],[],'2026-11');
+ await registerLoanRepayment(db,'A',loan.id,{valorCentavos:35000,data:'2026-11-20'},next);
+ const b=registeredBalance([income],await db.reservas.toArray(),[],'2026-11',undefined,(await db.contas.get('A'))!.emprestimosReserva);
+ assert.equal(b.current,before.current);assert.equal(b.reserve,before.reserve+5000);assert.equal(b.total,before.total+5000);
+ const old=await lendFromReserve(db,'A',{pessoa:'Cunhado',valorCentavos:50000,data:'2025-03-10',anterior:true},next);
+ await registerLoanRepayment(db,'A',old.id,{valorCentavos:51000,data:'2026-11-21'},next);
+ const c=registeredBalance([income],await db.reservas.toArray(),[],'2026-11',undefined,(await db.contas.get('A'))!.emprestimosReserva);
+ assert.equal(c.current,before.current);assert.equal(c.reserve,before.reserve+5000+51000);assert.equal(c.total,before.total+5000+51000);
+});
+test('malformed extras are rejected in synchronized copies',()=>{
+ const account:Conta={id:'A',nome:'Casal',padrao:true,conjunta:true,tipo:'casal'};
+ const loan=(r:object):EmprestimoReserva=>({id:'l1',pessoa:'Ana',data:'2026-11-01',valorCentavos:1000,devolucoes:[{id:'r1',data:'2026-11-02',valorCentavos:1000,...r}]});
+ assert.doesNotThrow(()=>validateReserveLoans({...account,emprestimosReserva:[loan({acrescimoCentavos:200})]}));
+ assert.doesNotThrow(()=>validateReserveLoans({...account,emprestimosReserva:[loan({valorCentavos:0,acrescimoCentavos:200})]}));
+ assert.throws(()=>validateReserveLoans({...account,emprestimosReserva:[loan({acrescimoCentavos:0})]}),/Acréscimo/);
+ assert.throws(()=>validateReserveLoans({...account,emprestimosReserva:[loan({acrescimoCentavos:-5})]}),/Acréscimo/);
+ assert.throws(()=>validateReserveLoans({...account,emprestimosReserva:[loan({valorCentavos:0})]}),/inválidos/);
+ assert.throws(()=>validateReserveLoans({...account,emprestimosReserva:[loan({valorCentavos:1200})]}),/ultrapassa/);
 });
 test('a loan larger than the available reserve is rejected and nothing is saved',async()=>{
  const db=await seed();
