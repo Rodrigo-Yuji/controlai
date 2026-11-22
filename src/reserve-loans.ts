@@ -19,6 +19,12 @@ export const normalizePerson=(name:string)=>name.replace(/\s+/g,' ').trim();
 export const personKey=(name:string)=>normalizePerson(name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export const loanRepaid=(loan:EmprestimoReserva)=>loan.devolucoes.reduce((sum,r)=>sum+r.valorCentavos,0);
 export const loanOutstanding=(loan:EmprestimoReserva)=>loan.valorCentavos-loanRepaid(loan);
+// Extra paid on top of the amount lent (a thank-you or interest). It also goes to the reserve.
+export const repaymentExtra=(r:DevolucaoEmprestimo)=>r.acrescimoCentavos??0;
+export const repaymentTotal=(r:DevolucaoEmprestimo)=>r.valorCentavos+repaymentExtra(r);
+export const loanExtra=(loan:EmprestimoReserva)=>loan.devolucoes.reduce((sum,r)=>sum+repaymentExtra(r),0);
+// Splits what the person handed back into the part that pays the loan and the extra.
+export const splitRepayment=(outstanding:number,received:number)=>{const principal=Math.max(0,Math.min(outstanding,received));return {valorCentavos:principal,acrescimoCentavos:received-principal};};
 
 export function validateReserveLoans(account:Conta){
  const loans=account.emprestimosReserva;
@@ -38,22 +44,25 @@ export function validateReserveLoans(account:Conta){
   let repaid=0;
   for(const repayment of loan.devolucoes){
    unique(repayment.id);
-   if(!positiveCents(repayment.valorCentavos)||!validDate(repayment.data)||repayment.data<loan.data)throw Error('Devolução com valor ou data inválidos.');
+   const extra=repayment.acrescimoCentavos;
+   if(extra!==undefined&&!positiveCents(extra))throw Error('Acréscimo da devolução inválido.');
+   const principalOk=positiveCents(repayment.valorCentavos)||(repayment.valorCentavos===0&&extra!==undefined);
+   if(!principalOk||!validDate(repayment.data)||repayment.data<loan.data)throw Error('Devolução com valor ou data inválidos.');
    repaid+=repayment.valorCentavos;
   }
   if(repaid>loan.valorCentavos)throw Error('A devolução ultrapassa o valor emprestado.');
  }
 }
 
-export interface PersonLoanSummary{pessoa:string;emprestadoCentavos:number;devolvidoCentavos:number;pendenteCentavos:number;emprestimos:EmprestimoReserva[]}
+export interface PersonLoanSummary{pessoa:string;emprestadoCentavos:number;devolvidoCentavos:number;pendenteCentavos:number;acrescimoCentavos:number;emprestimos:EmprestimoReserva[]}
 // Groups by person (case/accents ignored). Only movements up to `through` count.
 export function loansByPerson(loans:readonly EmprestimoReserva[]=[],through='9999-12-31'):PersonLoanSummary[]{
  const groups=new Map<string,PersonLoanSummary>();
  for(const original of loans){
   if(original.data>through)continue;
   const loan={...original,devolucoes:original.devolucoes.filter(r=>r.data<=through)};
-  const key=personKey(loan.pessoa),group=groups.get(key)??{pessoa:normalizePerson(loan.pessoa),emprestadoCentavos:0,devolvidoCentavos:0,pendenteCentavos:0,emprestimos:[]};
-  group.emprestadoCentavos+=loan.valorCentavos;group.devolvidoCentavos+=loanRepaid(loan);group.pendenteCentavos=group.emprestadoCentavos-group.devolvidoCentavos;group.emprestimos.push(loan);groups.set(key,group);
+  const key=personKey(loan.pessoa),group=groups.get(key)??{pessoa:normalizePerson(loan.pessoa),emprestadoCentavos:0,devolvidoCentavos:0,pendenteCentavos:0,acrescimoCentavos:0,emprestimos:[]};
+  group.emprestadoCentavos+=loan.valorCentavos;group.devolvidoCentavos+=loanRepaid(loan);group.acrescimoCentavos+=loanExtra(loan);group.pendenteCentavos=group.emprestadoCentavos-group.devolvidoCentavos;group.emprestimos.push(loan);groups.set(key,group);
  }
  return [...groups.values()].map(g=>({...g,emprestimos:[...g.emprestimos].sort((a,b)=>b.data.localeCompare(a.data))})).sort((a,b)=>b.pendenteCentavos-a.pendenteCentavos||a.pessoa.localeCompare(b.pessoa,'pt-BR'));
 }
@@ -67,7 +76,7 @@ export function netLent(loans:readonly EmprestimoReserva[]=[],through:string,fro
  let total=0;
  for(const loan of loans){
   if(!loan.anterior&&loan.data<=through&&(!from||loan.data>=from))total+=loan.valorCentavos;
-  for(const r of loan.devolucoes)if(r.data<=through&&(!from||r.data>=from))total-=r.valorCentavos;
+  for(const r of loan.devolucoes)if(r.data<=through&&(!from||r.data>=from))total-=repaymentTotal(r);
  }
  return total;
 }
@@ -114,6 +123,8 @@ export async function lendFromReserve(db:Store,accountId:string,input:NewLoan,ne
  });
 }
 
+// `valorCentavos` is everything the person handed back; what goes beyond the
+// open balance is stored as `acrescimoCentavos` and also enters the reserve.
 export interface NewRepayment{valorCentavos:number;data:string}
 export async function registerLoanRepayment(db:Store,accountId:string,loanId:string,input:NewRepayment,newId:()=>string=()=>crypto.randomUUID()){
  if(!positiveCents(input.valorCentavos))throw Error('Informe um valor maior que zero.');
@@ -122,11 +133,11 @@ export async function registerLoanRepayment(db:Store,accountId:string,loanId:str
   const account=await coupleAccount(tx,accountId),loans=account.emprestimosReserva??[],loan=loans.find(l=>l.id===loanId);
   if(!loan)throw Error('Empréstimo não encontrado. Reabra a lista.');
   if(input.data<loan.data)throw Error('A devolução não pode ser anterior ao empréstimo.');
-  if(input.valorCentavos>loanOutstanding(loan))throw Error('A devolução ultrapassa o valor que ainda está em aberto.');
+  const split=splitRepayment(loanOutstanding(loan),input.valorCentavos);
   await ensureOpenMonth(tx,accountId,input.data);
-  const repayment:DevolucaoEmprestimo={id:newId(),data:input.data,valorCentavos:input.valorCentavos};
+  const repayment:DevolucaoEmprestimo={id:newId(),data:input.data,valorCentavos:split.valorCentavos,...(split.acrescimoCentavos>0?{acrescimoCentavos:split.acrescimoCentavos}:{})};
   await save(tx,account,loans.map(l=>l.id===loanId?{...l,devolucoes:[...l.devolucoes,repayment]}:l));
-  await tx.reservas.add({contaId:accountId,descricao:`Devolução de ${loan.pessoa}`,valorCentavos:input.valorCentavos,data:input.data,emprestimoId:loanId,devolucaoId:repayment.id});
+  await tx.reservas.add({contaId:accountId,descricao:`Devolução de ${loan.pessoa}${split.acrescimoCentavos>0?' (com acréscimo)':''}`,valorCentavos:input.valorCentavos,data:input.data,emprestimoId:loanId,devolucaoId:repayment.id});
   return repayment;
  });
 }
