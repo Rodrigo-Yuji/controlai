@@ -156,3 +156,17 @@ html[data-theme="escuro"] .record small.refund-tag{background:#0d7a5f33;color:#6
 .loan-record.settled .loan-record-head strong{color:var(--muted-ink,#63728b);text-decoration:line-through;text-decoration-thickness:1px}
 .loan-progress{height:6px;border-radius:10px;background:#ffeaed;overflow:hidden;margin:7px 0 4px}.loan-progress>span{display:block;height:100%;background:#e9a528;border-radius:10px}.loan-record.settled .loan-progress{background:#dff7e9}.loan-record.settled .loan-progress>span{background:#12986e}
 html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad}html[data-theme="escuro"] .loan-badge.open{background:#db4d5833;color:#ff9aa3}html[data-theme="escuro"] .loan-badge.partial{background:#e9a52833;color:#f4c86a}html[data-theme="escuro"] .loan-progress{background:#ffffff1a}
+/* Empréstimos: cartão compacto por pessoa */
+.loan-person{padding:0!important;margin:10px 0!important;overflow:hidden}
+.loan-person-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;cursor:pointer;list-style:none}.loan-person-summary::-webkit-details-marker{display:none}
+.loan-person-summary::after{content:"";width:8px;height:8px;border-right:2px solid #8b96a9;border-bottom:2px solid #8b96a9;transform:rotate(45deg);margin:-4px 2px 0 4px;transition:transform .15s;flex-shrink:0}.loan-person[open]>.loan-person-summary::after{transform:rotate(-135deg);margin-top:4px}
+.loan-person-main{display:flex;flex-direction:column;min-width:0}.loan-person-main strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.loan-person-main small{color:var(--muted-ink,#63728b);font-size:11px}
+.loan-person-side{display:flex;flex-direction:column;align-items:flex-end;gap:3px;margin-left:auto}.loan-person-side strong{font-size:15px;white-space:nowrap}
+.loan-person[open]>.loan-person-summary{border-bottom:1px solid var(--line,#edf0f5)}
+.loan-person>.loan-person-totals{display:block;padding:8px 14px 0;font-size:11px}
+.loan-person>.loan-record{padding:10px 14px;margin:0}
+.loan-settled-title{margin:10px 14px 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted-ink,#63728b)}
+.loan-more{display:block;margin:2px 8px 8px}
+.loan-record.settled .loan-progress{display:none}.loan-record.settled .loan-record-head{margin-bottom:2px}
+.loan-person .loan-record small{margin-top:2px}.loan-person .loan-record small .textbutton{padding:0 4px;font-size:11px}
+.loan-person .loan-record .button-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}.loan-person .loan-record .button-row button{margin:0}.loan-record.settled .button-row .textbutton{padding:2px 0;font-size:12px}

@@ -1,15 +1,19 @@
 import NoteText from './NoteText';
 import {useState} from 'react';
 import MoneyInput from './MoneyInput';
-import {db,type Conta,type Reserva} from './db';
+import {db,type Conta,type EmprestimoReserva,type Reserva} from './db';
 import {MAX_LOAN_PERSON_LENGTH,loanOutstanding,repaymentExtra,splitRepayment,loansByPerson,lendFromReserve,registerLoanRepayment,removeLoan,removeLoanRepayment,totalOutstanding} from './reserve-loans';
 import {dataBR,hoje,moeda,paraCentavos} from './utils';
 
+// Settled loans shown per person before "Mostrar mais".
+const SETTLED_PREVIEW=3;
 // Loans taken from the couple's reserve. They never create an expense, so the
 // monthly variable budget is untouched; repayments go straight back to the reserve.
 export default function ReserveLoansPanel({account,reserves}:{account:Conta;reserves:Reserva[]}){
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const [person,setPerson]=useState(''),[value,setValue]=useState(''),[date,setDate]=useState(hoje()),[note,setNote]=useState(''),[before,setBefore]=useState(false);
+ const [showAll,setShowAll]=useState<Set<string>>(new Set());
+ const toggleSettled=(person:string)=>setShowAll(prev=>{const next=new Set(prev);if(next.has(person))next.delete(person);else next.add(person);return next;});
  const [repaying,setRepaying]=useState<string|null>(null),[repayValue,setRepayValue]=useState(''),[repayDate,setRepayDate]=useState(hoje());
  const loans=account.emprestimosReserva??[],people=loansByPerson(loans),outstanding=totalOutstanding(loans);
  const reserveBalance=reserves.reduce((sum,r)=>sum+r.valorCentavos,0),openCount=loans.filter(l=>loanOutstanding(l)>0).length;
@@ -30,6 +34,21 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
  }
  async function deleteRepayment(loanId:string,repaymentId:string){if(!confirm('Excluir esta devolução? O valor sai da reserva e volta a ficar em aberto.'))return;await work(()=>removeLoanRepayment(db,account.id,loanId,repaymentId));}
  async function deleteLoan(loanId:string,previous?:boolean){if(!confirm(previous?'Excluir este empréstimo antigo? A reserva não muda.':'Excluir este empréstimo? O valor volta para a reserva.'))return;await work(()=>removeLoan(db,account.id,loanId));}
+ const renderLoan=(loan:EmprestimoReserva)=>{const remaining=loanOutstanding(loan),repaid=loan.valorCentavos-remaining;return <div className={`record loan-record ${remaining>0?'open':'settled'}`} key={loan.id}><div className="recordbody">
+     <div className="loan-record-head"><strong>{moeda(loan.valorCentavos)} em {dataBR(loan.data)}</strong><LoanBadge remaining={remaining} repaid={repaid}/></div>
+     <div className="loan-progress" role="progressbar" aria-label="Quanto já foi devolvido" aria-valuemin={0} aria-valuemax={loan.valorCentavos} aria-valuenow={repaid}><span style={{width:`${Math.min(100,repaid/loan.valorCentavos*100)}%`}}/></div>
+     <small>{remaining>0?`Falta ${moeda(remaining)} · devolvido ${moeda(repaid)}`:`Devolvido ${moeda(repaid)} de ${moeda(loan.valorCentavos)}`}{loan.anterior?' · Anterior ao app':''}</small>{loan.observacao&&<NoteText className="card-note" text={loan.observacao}/>}
+     {loan.devolucoes.map(r=><small key={r.id}>{r.valorCentavos>0?`Devolução de ${moeda(r.valorCentavos)}`:'Valor extra'}{repaymentExtra(r)>0?` + acréscimo de ${moeda(repaymentExtra(r))}`:''} em {dataBR(r.data)} <button type="button" className="textbutton" onClick={()=>void deleteRepayment(loan.id,r.id)}>Excluir devolução</button></small>)}
+     {repaying===loan.id?<form className="fields" onSubmit={e=>void repay(e,loan.id)}>
+      <label>{remaining>0?'Valor devolvido (R$)':'Valor extra recebido (R$)'}<MoneyInput autoFocus selectOnFocus required min="0.01" value={repayValue} onChange={setRepayValue}/><RepaymentHint remaining={remaining} received={paraCentavos(repayValue)}/></label>
+      <label>Data da devolução<input required type="date" min={loan.data} value={repayDate} onChange={e=>setRepayDate(e.target.value)}/></label>
+      <button className="primary">Registrar devolução na reserva</button>
+      <button type="button" className="secondary" onClick={()=>{setRepaying(null);setError('');}}>Cancelar</button>
+     </form>:<div className="button-row">
+      {remaining>0?<button type="button" className="secondary" onClick={()=>startRepayment(loan.id,remaining)}>Registrar devolução</button>:<button type="button" className="textbutton" onClick={()=>startRepayment(loan.id,remaining)}>Registrar valor extra</button>}
+      {loan.devolucoes.length===0&&<button type="button" className="textbutton" onClick={()=>void deleteLoan(loan.id,loan.anterior)}>Excluir empréstimo</button>}
+     </div>}
+    </div></div>;};
  return <details className="panel couple-budget collapsible-panel"><summary>Empréstimos da reserva</summary>
   <p className="muted">Registre dinheiro da reserva emprestado a familiares. O valor sai da reserva sem virar despesa, então não consome o orçamento variável nem entra nos relatórios de gastos. Quando a pessoa devolver, registre a devolução: o valor volta direto para a reserva.</p>
   <p>Reserva disponível: <strong>{moeda(reserveBalance)}</strong> · Em aberto com terceiros: <strong>{moeda(outstanding)}</strong></p>
@@ -44,25 +63,14 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
     <button className="primary" disabled={!before&&reserveBalance<=0}>{before?'Registrar empréstimo antigo':'Registrar empréstimo'}</button>
    </form>
    {loans.length>0&&<div className="loan-counts"><span className="loan-badge open">{openCount} em aberto</span><span className="loan-badge settled">{loans.length-openCount} quitado{loans.length-openCount===1?'':'s'}</span></div>}
-   {people.length===0?<p className="muted">Nenhum empréstimo registrado.</p>:people.map(p=><div className={`panel loan-person ${p.pendenteCentavos>0?'open':'settled'}`} key={p.pessoa}>
-    <div className="loan-person-head"><h4>{p.pessoa}</h4><LoanBadge remaining={p.pendenteCentavos} repaid={p.devolvidoCentavos}/></div>
-    <p>{p.pendenteCentavos>0?<>Deve agora: <strong className="red">{moeda(p.pendenteCentavos)}</strong></>:<strong className="green">Nada pendente</strong>}<br/><small className="muted">Emprestado {moeda(p.emprestadoCentavos)} · Devolvido {moeda(p.devolvidoCentavos)}{p.acrescimoCentavos>0?` · Acréscimo ${moeda(p.acrescimoCentavos)}`:''}</small></p>
-    {[...p.emprestimos].sort((a,b)=>Number(loanOutstanding(b)>0)-Number(loanOutstanding(a)>0)).map(loan=>{const remaining=loanOutstanding(loan),repaid=loan.valorCentavos-remaining;return <div className={`record loan-record ${remaining>0?'open':'settled'}`} key={loan.id}><div className="recordbody">
-     <div className="loan-record-head"><strong>{moeda(loan.valorCentavos)} em {dataBR(loan.data)}</strong><LoanBadge remaining={remaining} repaid={repaid}/></div>
-     <div className="loan-progress" role="progressbar" aria-label="Quanto já foi devolvido" aria-valuemin={0} aria-valuemax={loan.valorCentavos} aria-valuenow={repaid}><span style={{width:`${Math.min(100,repaid/loan.valorCentavos*100)}%`}}/></div>
-     <small>{remaining>0?`Falta ${moeda(remaining)} · devolvido ${moeda(repaid)}`:`Devolvido ${moeda(repaid)} de ${moeda(loan.valorCentavos)}`}{loan.anterior?' · Anterior ao app':''}</small>{loan.observacao&&<NoteText className="card-note" text={loan.observacao}/>}
-     {loan.devolucoes.map(r=><small key={r.id}>{r.valorCentavos>0?`Devolução de ${moeda(r.valorCentavos)}`:'Valor extra'}{repaymentExtra(r)>0?` + acréscimo de ${moeda(repaymentExtra(r))}`:''} em {dataBR(r.data)} <button type="button" className="textbutton" onClick={()=>void deleteRepayment(loan.id,r.id)}>Excluir devolução</button></small>)}
-     {repaying===loan.id?<form className="fields" onSubmit={e=>void repay(e,loan.id)}>
-      <label>{remaining>0?'Valor devolvido (R$)':'Valor extra recebido (R$)'}<MoneyInput autoFocus selectOnFocus required min="0.01" value={repayValue} onChange={setRepayValue}/><RepaymentHint remaining={remaining} received={paraCentavos(repayValue)}/></label>
-      <label>Data da devolução<input required type="date" min={loan.data} value={repayDate} onChange={e=>setRepayDate(e.target.value)}/></label>
-      <button className="primary">Registrar devolução na reserva</button>
-      <button type="button" className="secondary" onClick={()=>{setRepaying(null);setError('');}}>Cancelar</button>
-     </form>:<div className="button-row">
-      {remaining>0?<button type="button" className="secondary" onClick={()=>startRepayment(loan.id,remaining)}>Registrar devolução</button>:<button type="button" className="textbutton" onClick={()=>startRepayment(loan.id,remaining)}>Registrar valor extra</button>}
-      {loan.devolucoes.length===0&&<button type="button" className="textbutton" onClick={()=>void deleteLoan(loan.id,loan.anterior)}>Excluir empréstimo</button>}
-     </div>}
-    </div></div>;})}
-   </div>)}
+   {people.length===0?<p className="muted">Nenhum empréstimo registrado.</p>:people.map(p=>{const open=p.emprestimos.filter(l=>loanOutstanding(l)>0),settled=p.emprestimos.filter(l=>loanOutstanding(l)<=0),all=showAll.has(p.pessoa),visible=all?settled:settled.slice(0,SETTLED_PREVIEW);return <details className={`panel loan-person ${p.pendenteCentavos>0?'open':'settled'}`} key={p.pessoa}>
+    <summary className="loan-person-summary"><span className="loan-person-main"><strong>{p.pessoa}</strong><small>{open.length} em aberto · {settled.length} quitado{settled.length===1?'':'s'}</small></span><span className="loan-person-side">{p.pendenteCentavos>0?<><strong className="red">{moeda(p.pendenteCentavos)}</strong><LoanBadge remaining={p.pendenteCentavos} repaid={p.devolvidoCentavos}/></>:<LoanBadge remaining={0} repaid={p.devolvidoCentavos}/>}</span></summary>
+    <small className="muted loan-person-totals">Emprestado {moeda(p.emprestadoCentavos)} · Devolvido {moeda(p.devolvidoCentavos)}{p.acrescimoCentavos>0?` · Acréscimo ${moeda(p.acrescimoCentavos)}`:''}</small>
+    {open.map(renderLoan)}
+    {settled.length>0&&<p className="loan-settled-title">Quitados{settled.length>SETTLED_PREVIEW&&!all?` · últimos ${SETTLED_PREVIEW} de ${settled.length}`:''}</p>}
+    {visible.map(renderLoan)}
+    {settled.length>SETTLED_PREVIEW&&<button type="button" className="textbutton loan-more" aria-expanded={all} onClick={()=>toggleSettled(p.pessoa)}>{all?'Mostrar menos':`Mostrar mais (${settled.length-SETTLED_PREVIEW})`}</button>}
+   </details>;})}
   </fieldset>
   {error&&<p role="alert" className="error">{error}</p>}
  </details>;
