@@ -25,7 +25,9 @@ const nameKey=(name:string)=>cleanName(name).normalize('NFD').replace(/[̀-ͯ]/g
 export const boxOf=(row:Pick<Reserva,'caixinhaId'>)=>row.caixinhaId??MAIN_RESERVE;
 export const rowsOfBox=<T extends Pick<Reserva,'caixinhaId'>>(rows:readonly T[],boxId:string)=>rows.filter(r=>boxOf(r)===boxId);
 export const boxBalance=(rows:readonly Pick<Reserva,'caixinhaId'|'data'|'valorCentavos'>[],boxId:string,through='9999-12-31')=>rowsOfBox(rows,boxId).filter(r=>r.data<=through).reduce((s,r)=>s+r.valorCentavos,0);
-export const boxName=(account:Pick<Conta,'caixinhas'>|undefined,boxId:string)=>boxId?account?.caixinhas?.find(c=>c.id===boxId)?.nome??'Caixinha':MAIN_RESERVE_LABEL;
+// The main reserve can be renamed and get a goal (Conta.reservaPrincipal).
+export const mainReserveName=(account:Pick<Conta,'reservaPrincipal'>|undefined)=>account?.reservaPrincipal?.nome||MAIN_RESERVE_LABEL;
+export const boxName=(account:Pick<Conta,'caixinhas'|'reservaPrincipal'>|undefined,boxId:string)=>boxId?account?.caixinhas?.find(c=>c.id===boxId)?.nome??'Caixinha':mainReserveName(account);
 // Caixinhas marked `foraDaReserva` hold money kept apart (for example, savings from
 // before the couple). They don't count in the reserve nor in the account total:
 // guardar into them takes money out of the account and resgatar brings it back.
@@ -47,6 +49,12 @@ export function staysNonNegative(rows:readonly Pick<Reserva,'data'|'valorCentavo
 }
 
 export function validateBoxes(account:Conta){
+ const main=account.reservaPrincipal;
+ if(main!==undefined){
+  if(!main||typeof main!=='object')throw Error('Reserva principal inválida.');
+  if(main.nome!==undefined&&(typeof main.nome!=='string'||!cleanName(main.nome)||cleanName(main.nome).length>MAX_BOX_NAME))throw Error(`Informe o nome da reserva (até ${MAX_BOX_NAME} caracteres).`);
+  if(main.metaCentavos!==undefined&&!positiveCents(main.metaCentavos))throw Error('Meta da reserva principal inválida.');
+ }
  const boxes=account.caixinhas;
  if(boxes===undefined)return;
  if(!Array.isArray(boxes)||boxes.length>MAX_BOXES)throw Error('Caixinhas inválidas.');
@@ -55,7 +63,7 @@ export function validateBoxes(account:Conta){
   if(!box||typeof box.id!=='string'||!box.id||ids.has(box.id))throw Error('Identificador de caixinha inválido ou repetido.');
   const name=typeof box.nome==='string'?cleanName(box.nome):'';
   if(!name||name.length>MAX_BOX_NAME)throw Error(`Informe o nome da caixinha (até ${MAX_BOX_NAME} caracteres).`);
-  if(names.has(nameKey(name))||nameKey(name)===nameKey(MAIN_RESERVE_LABEL))throw Error('Já existe uma reserva com esse nome.');
+  if(names.has(nameKey(name))||nameKey(name)===nameKey(mainReserveName(account)))throw Error('Já existe uma reserva com esse nome.');
   if(box.metaCentavos!==undefined&&!positiveCents(box.metaCentavos))throw Error('Meta da caixinha inválida.');
   if(box.foraDaReserva!==undefined&&box.foraDaReserva!==true)throw Error('Marcação de caixinha fora da reserva inválida.');
   ids.add(box.id);names.add(nameKey(name));
@@ -94,6 +102,19 @@ export async function saveBox(db:Store,accountId:string,input:BoxInput,boxId?:st
   validateBoxes({...account,caixinhas:next});
   await tx.contas.update(accountId,{caixinhas:next});
   return box;
+ });
+}
+// Renames the main reserve and sets (or clears) its goal; the default name comes back when cleared.
+export async function saveMainReserve(db:Store,accountId:string,input:BoxInput){
+ const nome=cleanName(input.nome);
+ if(!nome||nome.length>MAX_BOX_NAME)throw Error(`Informe o nome da reserva (até ${MAX_BOX_NAME} caracteres).`);
+ if(input.metaCentavos!==undefined&&!positiveCents(input.metaCentavos))throw Error('A meta precisa ser maior que zero.');
+ return db.transaction(stores(db),async tx=>{
+  const account=await accountWithBox(tx,accountId,MAIN_RESERVE);
+  const main={...(nome!==MAIN_RESERVE_LABEL?{nome}:{}),...(input.metaCentavos?{metaCentavos:input.metaCentavos}:{})};
+  validateBoxes({...account,reservaPrincipal:main});
+  await tx.contas.update(accountId,{reservaPrincipal:main});
+  return main;
  });
 }
 export async function removeBox(db:Store,accountId:string,boxId:string){
