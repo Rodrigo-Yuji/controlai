@@ -195,3 +195,5 @@ html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad
 .reserve-actions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px}.reserve-actions button{white-space:nowrap;min-width:0}
 .loan-record small.loan-box{color:var(--brand-strong,#0a5f4a)}
 @media(max-width:700px){.reserve-boxes{grid-template-columns:repeat(2,minmax(0,1fr))}.reserve-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+.reserve-box-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#eef1f6;color:#52617a}html[data-theme="escuro"] .reserve-box-tag{background:#ffffff14;color:#a3b3c7}
+.reserve-box.apart{border-style:dashed}

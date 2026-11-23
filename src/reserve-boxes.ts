@@ -26,6 +26,11 @@ export const boxOf=(row:Pick<Reserva,'caixinhaId'>)=>row.caixinhaId??MAIN_RESERV
 export const rowsOfBox=<T extends Pick<Reserva,'caixinhaId'>>(rows:readonly T[],boxId:string)=>rows.filter(r=>boxOf(r)===boxId);
 export const boxBalance=(rows:readonly Pick<Reserva,'caixinhaId'|'data'|'valorCentavos'>[],boxId:string,through='9999-12-31')=>rowsOfBox(rows,boxId).filter(r=>r.data<=through).reduce((s,r)=>s+r.valorCentavos,0);
 export const boxName=(account:Pick<Conta,'caixinhas'>|undefined,boxId:string)=>boxId?account?.caixinhas?.find(c=>c.id===boxId)?.nome??'Caixinha':MAIN_RESERVE_LABEL;
+// Caixinhas marked `foraDaReserva` hold money kept apart (for example, savings from
+// before the couple). They don't count in the reserve nor in the account total:
+// guardar into them takes money out of the account and resgatar brings it back.
+export const separateBoxIds=(account:Pick<Conta,'caixinhas'>|undefined)=>new Set((account?.caixinhas??[]).filter(c=>c.foraDaReserva).map(c=>c.id));
+export const inSeparateBox=(row:Pick<Reserva,'caixinhaId'>,separate:ReadonlySet<string>)=>!!row.caixinhaId&&separate.has(row.caixinhaId);
 export const isImplantation=(row:Pick<Reserva,'implantacao'>)=>row.implantacao===true;
 // Saved money brought in by implantação up to `through` (and from `from`, when given).
 export function reserveImplanted(rows:readonly Pick<Reserva,'implantacao'|'data'|'valorCentavos'>[]=[],through:string,from?:string){
@@ -52,6 +57,7 @@ export function validateBoxes(account:Conta){
   if(!name||name.length>MAX_BOX_NAME)throw Error(`Informe o nome da caixinha (até ${MAX_BOX_NAME} caracteres).`);
   if(names.has(nameKey(name))||nameKey(name)===nameKey(MAIN_RESERVE_LABEL))throw Error('Já existe uma reserva com esse nome.');
   if(box.metaCentavos!==undefined&&!positiveCents(box.metaCentavos))throw Error('Meta da caixinha inválida.');
+  if(box.foraDaReserva!==undefined&&box.foraDaReserva!==true)throw Error('Marcação de caixinha fora da reserva inválida.');
   ids.add(box.id);names.add(nameKey(name));
  }
 }
@@ -75,7 +81,7 @@ async function accountWithBox(tx:Pick<Database,'contas'>,accountId:string,boxId:
  return account;
 }
 
-export interface BoxInput{nome:string;metaCentavos?:number}
+export interface BoxInput{nome:string;metaCentavos?:number;foraDaReserva?:boolean}
 export async function saveBox(db:Store,accountId:string,input:BoxInput,boxId?:string,newId:()=>string=()=>crypto.randomUUID()){
  const nome=cleanName(input.nome);
  if(!nome||nome.length>MAX_BOX_NAME)throw Error(`Informe o nome da caixinha (até ${MAX_BOX_NAME} caracteres).`);
@@ -83,7 +89,7 @@ export async function saveBox(db:Store,accountId:string,input:BoxInput,boxId?:st
  return db.transaction(stores(db),async tx=>{
   const account=await accountWithBox(tx,accountId,boxId??MAIN_RESERVE),boxes=account.caixinhas??[];
   if(!boxId&&boxes.length>=MAX_BOXES)throw Error(`Limite de ${MAX_BOXES} caixinhas atingido.`);
-  const box:Caixinha={id:boxId??newId(),nome,...(input.metaCentavos?{metaCentavos:input.metaCentavos}:{})};
+  const box:Caixinha={id:boxId??newId(),nome,...(input.metaCentavos?{metaCentavos:input.metaCentavos}:{}),...(input.foraDaReserva?{foraDaReserva:true as const}:{})};
   const next=boxId?boxes.map(c=>c.id===boxId?box:c):[...boxes,box];
   validateBoxes({...account,caixinhas:next});
   await tx.contas.update(accountId,{caixinhas:next});
