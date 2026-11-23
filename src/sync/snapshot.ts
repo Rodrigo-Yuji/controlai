@@ -1,4 +1,5 @@
 import {validatePlanning} from '../planning.ts';
+import {validateBoxReferences} from '../reserve-boxes.ts';
 import {validateFinancialReferences,validateManagement} from '../management.ts';
 import {validateReserveRow} from '../reserve-spending.ts';
 import {validateExpenseRefund} from '../expense-refund.ts';
@@ -43,6 +44,7 @@ export function validateSnapshot(value:unknown):Snapshot {
     }
   }
   validateFinancialReferences(snapshot.contas,snapshot.lancamentos,snapshot.recorrencias);
+  validateBoxReferences(snapshot.contas,snapshot.reservas);
   if(!snapshot.contas.length)throw Error('A cópia precisa conter ao menos uma conta.');
   // Keep synchronization requests bounded; attachments are not included.
   if(new TextEncoder().encode(JSON.stringify(snapshot)).byteLength>8*1024*1024)throw Error('Cópia maior que o limite de 8 MB.');
