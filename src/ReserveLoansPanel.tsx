@@ -2,8 +2,9 @@ import NoteText from './NoteText';
 import {useState} from 'react';
 import MoneyInput from './MoneyInput';
 import {db,type Conta,type EmprestimoReserva,type Reserva} from './db';
-import {MAX_LOAN_INSTALLMENTS,addMonths,installmentSchedule,loanInstallments,loanLateness,nextInstallment,setLoanInstallments,MAX_LOAN_PERSON_LENGTH,loanOutstanding,repaymentExtra,splitRepayment,loansByPerson,lendFromReserve,registerLoanRepayment,removeLoan,removeLoanRepayment,totalOutstanding} from './reserve-loans';
+import {MAX_LOAN_INSTALLMENTS,addMonths,installmentSchedule,loanInstallments,loanLateness,nextInstallment,setLoanInstallments,MAX_LOAN_PERSON_LENGTH,loanOutstanding,setLoanBox,repaymentExtra,splitRepayment,loansByPerson,lendFromReserve,registerLoanRepayment,removeLoan,removeLoanRepayment,totalOutstanding} from './reserve-loans';
 import {dataBR,hoje,moeda,paraCentavos} from './utils';
+import {MAIN_RESERVE,MAIN_RESERVE_LABEL,boxBalance,boxName} from './reserve-boxes';
 
 // Settled loans shown per person before "Mostrar mais".
 const SETTLED_PREVIEW=3;
@@ -15,11 +16,13 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
  const [split,setSplit]=useState(false),[splitCount,setSplitCount]=useState('8'),[splitFirst,setSplitFirst]=useState('');
  const [planning,setPlanning]=useState<string|null>(null),[planCount,setPlanCount]=useState('8'),[planFirst,setPlanFirst]=useState('');
  const today=hoje();
+ const [loanBox,setLoanBoxChoice]=useState(MAIN_RESERVE),[moving,setMoving]=useState<string|null>(null),[moveTo,setMoveTo]=useState(MAIN_RESERVE);
+ const boxes=account.caixinhas??[],source=boxes.some(c=>c.id===loanBox)?loanBox:MAIN_RESERVE;
  const [showAll,setShowAll]=useState<Set<string>>(new Set());
  const toggleSettled=(person:string)=>setShowAll(prev=>{const next=new Set(prev);if(next.has(person))next.delete(person);else next.add(person);return next;});
  const [repaying,setRepaying]=useState<string|null>(null),[repayValue,setRepayValue]=useState(''),[repayDate,setRepayDate]=useState(hoje());
  const loans=account.emprestimosReserva??[],people=loansByPerson(loans),outstanding=totalOutstanding(loans);
- const reserveBalance=reserves.reduce((sum,r)=>sum+r.valorCentavos,0),openCount=loans.filter(l=>loanOutstanding(l)>0).length,lateCount=loans.filter(l=>loanLateness(l,today).parcelas>0).length;
+ const reserveBalance=boxBalance(reserves,source),openCount=loans.filter(l=>loanOutstanding(l)>0).length,lateCount=loans.filter(l=>loanLateness(l,today).parcelas>0).length;
  async function work(fn:()=>Promise<void>){if(busy)return;setBusy(true);setError('');try{await fn();}catch(reason){setError(reason instanceof Error?reason.message:'Não foi possível salvar.');}finally{setBusy(false);}}
  async function lend(e:React.FormEvent){
   e.preventDefault();
@@ -28,17 +31,18 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
   if(!Number.isSafeInteger(cents)||cents<=0){setError('Informe um valor maior que zero.');return;}
   const parcelas=Number(splitCount),first=splitFirst||addMonths(date,1);
   if(split&&(!Number.isInteger(parcelas)||parcelas<2||parcelas>MAX_LOAN_INSTALLMENTS)){setError(`Informe de 2 a ${MAX_LOAN_INSTALLMENTS} parcelas.`);return;}
-  await work(async()=>{await lendFromReserve(db,account.id,{pessoa:person,valorCentavos:cents,data:date,observacao:note,anterior:before,...(split?{parcelamento:{parcelas,primeiroVencimento:first}}:{})});setPerson('');setValue('');setNote('');setBefore(false);setSplit(false);setSplitFirst('');});
+  await work(async()=>{await lendFromReserve(db,account.id,{pessoa:person,valorCentavos:cents,data:date,observacao:note,anterior:before,caixinhaId:source,...(split?{parcelamento:{parcelas,primeiroVencimento:first}}:{})});setPerson('');setValue('');setNote('');setBefore(false);setSplit(false);setSplitFirst('');});
  }
  // Parcelado: sugere o valor atrasado ou, sem atraso, o que falta da próxima parcela.
- function startRepayment(loan:EmprestimoReserva,remaining:number){const late=loanLateness(loan,today),next=nextInstallment(loan,today),suggested=late.centavos>0?late.centavos:next?next.valorCentavos-next.pagoCentavos:remaining;setPlanning(null);setRepaying(loan.id);setRepayValue(suggested>0?String(suggested/100):"");setRepayDate(hoje());setError('');}
- function startPlan(loan:EmprestimoReserva){setRepaying(null);setPlanning(loan.id);setPlanCount(String(loan.parcelamento?.parcelas??8));setPlanFirst(loan.parcelamento?.primeiroVencimento??addMonths(loan.data,1));setError('');}
+ function startRepayment(loan:EmprestimoReserva,remaining:number){const late=loanLateness(loan,today),next=nextInstallment(loan,today),suggested=late.centavos>0?late.centavos:next?next.valorCentavos-next.pagoCentavos:remaining;setPlanning(null);setRepaying(loan.id);setRepayValue(suggested>0?String(suggested/100):"");setMoving(null);setRepayDate(hoje());setError('');}
+ function startPlan(loan:EmprestimoReserva){setRepaying(null);setMoving(null);setPlanning(loan.id);setPlanCount(String(loan.parcelamento?.parcelas??8));setPlanFirst(loan.parcelamento?.primeiroVencimento??addMonths(loan.data,1));setError('');}
  async function savePlan(e:React.FormEvent,loanId:string){
   e.preventDefault();
   const parcelas=Number(planCount);
   if(!Number.isInteger(parcelas)||parcelas<2||parcelas>MAX_LOAN_INSTALLMENTS){setError(`Informe de 2 a ${MAX_LOAN_INSTALLMENTS} parcelas.`);return;}
   await work(async()=>{await setLoanInstallments(db,account.id,loanId,{parcelas,primeiroVencimento:planFirst});setPlanning(null);});
  }
+ async function moveLoan(e:React.FormEvent,loanId:string){e.preventDefault();await work(async()=>{await setLoanBox(db,account.id,loanId,moveTo);setMoving(null);});}
  async function removePlan(loanId:string){if(!confirm('Remover o parcelamento? O valor em aberto continua igual, só deixa de ter vencimentos.'))return;await work(async()=>{await setLoanInstallments(db,account.id,loanId,undefined);setPlanning(null);});}
  async function repay(e:React.FormEvent,loanId:string){
   e.preventDefault();
@@ -52,12 +56,17 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
      <div className="loan-record-head"><strong>{moeda(loan.valorCentavos)} em {dataBR(loan.data)}</strong><LoanBadge remaining={remaining} repaid={repaid} late={late.parcelas>0}/></div>
      <div className="loan-progress" role="progressbar" aria-label="Quanto já foi devolvido" aria-valuemin={0} aria-valuemax={loan.valorCentavos} aria-valuenow={repaid}><span style={{width:`${Math.min(100,repaid/loan.valorCentavos*100)}%`}}/></div>
      <small>{remaining>0?`Falta ${moeda(remaining)} · devolvido ${moeda(repaid)}`:`Devolvido ${moeda(repaid)} de ${moeda(loan.valorCentavos)}`}{loan.anterior?' · Anterior ao app':''}</small>
+     {(boxes.length>0||loan.caixinhaId)&&<small className="loan-box">Reserva: {boxName(account,loan.caixinhaId??MAIN_RESERVE)} · as devoluções voltam para ela</small>}
      {loan.parcelamento&&<small className="loan-plan">Parcelado em {plan.length}× · {paidCount} de {plan.length} paga{paidCount===1?'':'s'}{next&&late.parcelas===0?` · próxima ${next.numero}/${plan.length}: ${moeda(next.valorCentavos-next.pagoCentavos)} em ${dataBR(next.vencimento)}`:''}</small>}
      {late.parcelas>0&&<small className="loan-late" role="status">⚠ {late.parcelas} parcela{late.parcelas===1?' atrasada':'s atrasadas'} · {moeda(late.centavos)} desde {dataBR(late.desde!)}</small>}
      {loan.parcelamento&&<details className="loan-installments"><summary>Ver parcelas</summary><ol>{plan.map(p=><li key={p.numero} className={p.status}><span>{p.numero}/{plan.length} · {dataBR(p.vencimento)}</span><span>{moeda(p.valorCentavos)}{p.status==='parcial'||(p.status==='atrasada'&&p.pagoCentavos>0)?` (pago ${moeda(p.pagoCentavos)})`:''}</span><span className="installment-status">{INSTALLMENT_LABEL[p.status]}</span></li>)}</ol></details>}
      {loan.observacao&&<NoteText className="card-note" text={loan.observacao}/>}
      {loan.devolucoes.map(r=><small key={r.id}>{r.valorCentavos>0?`Devolução de ${moeda(r.valorCentavos)}`:'Valor extra'}{repaymentExtra(r)>0?` + acréscimo de ${moeda(repaymentExtra(r))}`:''} em {dataBR(r.data)} <button type="button" className="textbutton" onClick={()=>void deleteRepayment(loan.id,r.id)}>Excluir devolução</button></small>)}
-     {planning===loan.id?<form className="fields" onSubmit={e=>void savePlan(e,loan.id)}>
+     {moving===loan.id?<form className="fields" onSubmit={e=>void moveLoan(e,loan.id)}>
+      <label>Reserva deste empréstimo<select value={moveTo} onChange={e=>setMoveTo(e.target.value)}><option value={MAIN_RESERVE}>{MAIN_RESERVE_LABEL}</option>{boxes.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select><small>O empréstimo e as devoluções já registradas passam para a reserva escolhida.</small></label>
+      <button className="primary">Salvar reserva</button>
+      <button type="button" className="secondary" onClick={()=>{setMoving(null);setError('');}}>Cancelar</button>
+     </form>:planning===loan.id?<form className="fields" onSubmit={e=>void savePlan(e,loan.id)}>
       <div className="twocol"><label>Parcelas<input required type="number" min={2} max={MAX_LOAN_INSTALLMENTS} step={1} value={planCount} onChange={e=>setPlanCount(e.target.value)}/></label><label>1º vencimento<input required type="date" min={loan.data} value={planFirst} onChange={e=>setPlanFirst(e.target.value)}/></label></div>
       <PlanHint total={loan.valorCentavos} count={planCount} first={planFirst}/>
       <button className="primary">Salvar parcelamento</button>
@@ -70,17 +79,19 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
       <button type="button" className="secondary" onClick={()=>{setRepaying(null);setError('');}}>Cancelar</button>
      </form>:<div className="button-row">
       {remaining>0?<button type="button" className="secondary" onClick={()=>startRepayment(loan,remaining)}>Registrar devolução</button>:<button type="button" className="textbutton" onClick={()=>startRepayment(loan,remaining)}>Registrar valor extra</button>}
+      {boxes.length>0&&<button type="button" className="textbutton" onClick={()=>{setRepaying(null);setPlanning(null);setMoving(loan.id);setMoveTo(loan.caixinhaId??MAIN_RESERVE);setError('');}}>Trocar reserva</button>}
       {remaining>0&&<button type="button" className="textbutton" onClick={()=>startPlan(loan)}>{loan.parcelamento?'Alterar parcelas':'Parcelar'}</button>}
       {loan.devolucoes.length===0&&<button type="button" className="textbutton" onClick={()=>void deleteLoan(loan.id,loan.anterior)}>Excluir empréstimo</button>}
      </div>}
     </div></div>;};
  return <details className="panel couple-budget collapsible-panel"><summary>Empréstimos da reserva</summary>
   <p className="muted">Registre dinheiro da reserva emprestado a familiares. O valor sai da reserva sem virar despesa, então não consome o orçamento variável nem entra nos relatórios de gastos. Quando a pessoa devolver, registre a devolução: o valor volta direto para a reserva.</p>
-  <p>Reserva disponível: <strong>{moeda(reserveBalance)}</strong> · Em aberto com terceiros: <strong>{moeda(outstanding)}</strong></p>
+  <p>{boxes.length>0?`Disponível em ${boxName(account,source)}`:'Reserva disponível'}: <strong>{moeda(reserveBalance)}</strong> · Em aberto com terceiros: <strong>{moeda(outstanding)}</strong></p>
   <fieldset disabled={busy} className="plain-fields">
    <form className="fields" onSubmit={lend}>
     <label>Quem recebeu<input required list="reserve-loan-people" maxLength={MAX_LOAN_PERSON_LENGTH} value={person} onChange={e=>setPerson(e.target.value)} placeholder="Nome da pessoa"/></label>
     <datalist id="reserve-loan-people">{people.map(p=><option key={p.pessoa} value={p.pessoa}/>)}</datalist>
+    {boxes.length>0&&<label>Sai de qual reserva<select value={source} onChange={e=>setLoanBoxChoice(e.target.value)}><option value={MAIN_RESERVE}>{MAIN_RESERVE_LABEL}</option>{boxes.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select><small>As devoluções voltam para esta mesma reserva. Disponível: {moeda(reserveBalance)}</small></label>}
     <label>Valor emprestado (R$)<MoneyInput required min="0.01" max={before?undefined:Math.max(0,reserveBalance)/100} value={value} onChange={setValue}/></label>
     <label>Data do empréstimo<input required type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
     <label className="check loan-split"><input type="checkbox" checked={split} onChange={e=>{setSplit(e.target.checked);if(e.target.checked&&!splitFirst)setSplitFirst(addMonths(date,1));}}/><span>Parcelar devolução<small>Defina em quantas vezes a pessoa vai devolver. O app mostra a próxima parcela e avisa quando alguma atrasar.</small></span></label>

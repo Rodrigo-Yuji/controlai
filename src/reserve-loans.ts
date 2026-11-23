@@ -1,5 +1,6 @@
 import {validDate} from './assistant.ts';
 import {ensureOpenMonth} from './account-guards.ts';
+import {MAIN_RESERVE,rowsOfBox} from './reserve-boxes.ts';
 import type {Conta,DevolucaoEmprestimo,EmprestimoReserva,ParcelamentoEmprestimo,Reserva} from './db.ts';
 import type {Database} from './storage/types.ts';
 
@@ -79,6 +80,7 @@ export function validateReserveLoans(account:Conta){
   if(!positiveCents(loan.valorCentavos)||!validDate(loan.data))throw Error('Empréstimo com valor ou data inválidos.');
   if(loan.observacao!==undefined&&(typeof loan.observacao!=='string'||loan.observacao.length>200))throw Error('Observação do empréstimo inválida.');
   if(loan.anterior!==undefined&&loan.anterior!==true)throw Error('Marcação de empréstimo anterior inválida.');
+  if(loan.caixinhaId!==undefined&&(typeof loan.caixinhaId!=='string'||!account.caixinhas?.some(c=>c.id===loan.caixinhaId)))throw Error('Caixinha do empréstimo não encontrada.');
   validatePlan(loan.parcelamento,loan.data);
   if(!Array.isArray(loan.devolucoes))throw Error('Devoluções do empréstimo inválidas.');
   let repaid=0;
@@ -141,11 +143,14 @@ async function save(tx:Pick<Database,'contas'>,account:Conta,loans:EmprestimoRes
  validateReserveLoans(next);
  await tx.contas.update(account.id,{emprestimosReserva:loans});
 }
-const reserveRows=(tx:Pick<Database,'reservas'>,accountId:string)=>tx.reservas.where('contaId').equals(accountId).toArray();
+// Rows of the reserve the loan belongs to (main reserve or one caixinha).
+const reserveRows=async(tx:Pick<Database,'reservas'>,accountId:string,boxId=MAIN_RESERVE)=>rowsOfBox(await tx.reservas.where('contaId').equals(accountId).toArray(),boxId);
+const boxTag=(boxId?:string)=>boxId?{caixinhaId:boxId}:{};
 
 // `anterior`: money lent before using the app. It is tracked as a debt but never
 // leaves the reserve; repayments still go to the reserve.
-export interface NewLoan{pessoa:string;valorCentavos:number;data:string;observacao?:string;anterior?:boolean;parcelamento?:ParcelamentoEmprestimo}
+// `caixinhaId`: the money leaves that caixinha and repayments go back to it.
+export interface NewLoan{pessoa:string;valorCentavos:number;data:string;observacao?:string;anterior?:boolean;parcelamento?:ParcelamentoEmprestimo;caixinhaId?:string}
 export async function lendFromReserve(db:Store,accountId:string,input:NewLoan,newId:()=>string=()=>crypto.randomUUID()){
  const pessoa=normalizePerson(input.pessoa),observacao=input.observacao?.trim();
  if(!pessoa||pessoa.length>MAX_LOAN_PERSON_LENGTH)throw Error('Informe quem recebeu o empréstimo (até 60 caracteres).');
@@ -155,11 +160,13 @@ export async function lendFromReserve(db:Store,accountId:string,input:NewLoan,ne
  return db.transaction(stores(db),async tx=>{
   const account=await coupleAccount(tx,accountId);
   await ensureOpenMonth(tx,accountId,input.data);
-  if(!input.anterior){const rows=await reserveRows(tx,accountId);
-  if(!reserveStaysNonNegative([...rows,{data:input.data,valorCentavos:-input.valorCentavos}]))throw Error('Saldo da reserva insuficiente para este empréstimo. Se o empréstimo foi feito antes de usar o ControlAI, marque essa opção.');}
-  const loan:EmprestimoReserva={id:newId(),pessoa,valorCentavos:input.valorCentavos,data:input.data,...(observacao?{observacao}:{}),devolucoes:[],...(input.anterior?{anterior:true as const}:{}),...(input.parcelamento?{parcelamento:{parcelas:input.parcelamento.parcelas,primeiroVencimento:input.parcelamento.primeiroVencimento}}:{})};
+  const box=input.caixinhaId||MAIN_RESERVE;
+  if(box&&!account.caixinhas?.some(c=>c.id===box))throw Error('Caixinha não encontrada. Reabra a reserva.');
+  if(!input.anterior){const rows=await reserveRows(tx,accountId,box);
+  if(!reserveStaysNonNegative([...rows,{data:input.data,valorCentavos:-input.valorCentavos}]))throw Error('Saldo insuficiente nesta reserva para este empréstimo. Se o empréstimo foi feito antes de usar o ControlAI, marque essa opção.');}
+  const loan:EmprestimoReserva={id:newId(),pessoa,valorCentavos:input.valorCentavos,data:input.data,...(observacao?{observacao}:{}),devolucoes:[],...(input.anterior?{anterior:true as const}:{}),...(input.parcelamento?{parcelamento:{parcelas:input.parcelamento.parcelas,primeiroVencimento:input.parcelamento.primeiroVencimento}}:{}),...boxTag(box)};
   await save(tx,account,[...(account.emprestimosReserva??[]),loan]);
-  if(!input.anterior)await tx.reservas.add({contaId:accountId,descricao:`Empréstimo para ${pessoa}`,valorCentavos:-input.valorCentavos,data:input.data,emprestimoId:loan.id});
+  if(!input.anterior)await tx.reservas.add({contaId:accountId,descricao:`Empréstimo para ${pessoa}`,valorCentavos:-input.valorCentavos,data:input.data,emprestimoId:loan.id,...boxTag(box)});
   return loan;
  });
 }
@@ -178,7 +185,7 @@ export async function registerLoanRepayment(db:Store,accountId:string,loanId:str
   await ensureOpenMonth(tx,accountId,input.data);
   const repayment:DevolucaoEmprestimo={id:newId(),data:input.data,valorCentavos:split.valorCentavos,...(split.acrescimoCentavos>0?{acrescimoCentavos:split.acrescimoCentavos}:{})};
   await save(tx,account,loans.map(l=>l.id===loanId?{...l,devolucoes:[...l.devolucoes,repayment]}:l));
-  await tx.reservas.add({contaId:accountId,descricao:`Devolução de ${loan.pessoa}${split.acrescimoCentavos>0?' (com acréscimo)':''}`,valorCentavos:input.valorCentavos,data:input.data,emprestimoId:loanId,devolucaoId:repayment.id});
+  await tx.reservas.add({contaId:accountId,descricao:`Devolução de ${loan.pessoa}${split.acrescimoCentavos>0?' (com acréscimo)':''}`,valorCentavos:input.valorCentavos,data:input.data,emprestimoId:loanId,devolucaoId:repayment.id,...boxTag(loan.caixinhaId)});
   return repayment;
  });
 }
@@ -188,7 +195,7 @@ export async function removeLoanRepayment(db:Store,accountId:string,loanId:strin
   const account=await coupleAccount(tx,accountId),loans=account.emprestimosReserva??[],loan=loans.find(l=>l.id===loanId),repayment=loan?.devolucoes.find(r=>r.id===repaymentId);
   if(!loan||!repayment)throw Error('Devolução não encontrada. Reabra a lista.');
   await ensureOpenMonth(tx,accountId,repayment.data);
-  const rows=await reserveRows(tx,accountId),linked=rows.filter(r=>r.emprestimoId===loanId&&r.devolucaoId===repaymentId);
+  const rows=await reserveRows(tx,accountId,loan.caixinhaId),linked=rows.filter(r=>r.emprestimoId===loanId&&r.devolucaoId===repaymentId);
   const remaining=rows.filter(r=>!linked.includes(r));
   if(!reserveStaysNonNegative(remaining))throw Error('Excluir esta devolução deixaria a reserva negativa em alguma data. Ajuste as retiradas posteriores primeiro.');
   await save(tx,account,loans.map(l=>l.id===loanId?{...l,devolucoes:l.devolucoes.filter(r=>r.id!==repaymentId)}:l));
@@ -202,7 +209,7 @@ export async function removeLoan(db:Store,accountId:string,loanId:string){
   if(!loan)throw Error('Empréstimo não encontrado. Reabra a lista.');
   if(loan.devolucoes.length>0)throw Error('Exclua primeiro as devoluções deste empréstimo.');
   await ensureOpenMonth(tx,accountId,loan.data);
-  const linked=(await reserveRows(tx,accountId)).filter(r=>r.emprestimoId===loanId);
+  const linked=(await tx.reservas.where('contaId').equals(accountId).toArray()).filter(r=>r.emprestimoId===loanId);
   await save(tx,account,loans.filter(l=>l.id!==loanId));
   for(const row of linked)if(row.id!==undefined)await tx.reservas.delete(row.id);
  });
@@ -216,5 +223,22 @@ export async function setLoanInstallments(db:Store,accountId:string,loanId:strin
   if(!loan)throw Error('Empréstimo não encontrado. Reabra a lista.');
   validatePlan(plan,loan.data);
   await save(tx,account,loans.map(l=>{if(l.id!==loanId)return l;const next={...l};if(plan)next.parcelamento={parcelas:plan.parcelas,primeiroVencimento:plan.primeiroVencimento};else delete next.parcelamento;return next;}));
+ });
+}
+
+// Changes which reserve a loan belongs to: its withdrawal and repayments move
+// together, so the total reserve is the same and only the two balances change.
+export async function setLoanBox(db:Store,accountId:string,loanId:string,boxId:string){
+ return db.transaction(stores(db),async tx=>{
+  const account=await coupleAccount(tx,accountId),loans=account.emprestimosReserva??[],loan=loans.find(l=>l.id===loanId);
+  if(!loan)throw Error('Empréstimo não encontrado. Reabra a lista.');
+  if(boxId&&!account.caixinhas?.some(c=>c.id===boxId))throw Error('Caixinha não encontrada. Reabra a reserva.');
+  const from=loan.caixinhaId??MAIN_RESERVE;
+  if(from===boxId)return;
+  const all=await tx.reservas.where('contaId').equals(accountId).toArray(),linked=all.filter(r=>r.emprestimoId===loanId);
+  const moved=all.map(r=>r.emprestimoId===loanId?{...r,caixinhaId:boxId||undefined}:r);
+  if(!reserveStaysNonNegative(rowsOfBox(moved,boxId))||!reserveStaysNonNegative(rowsOfBox(moved,from)))throw Error('Trocar a caixinha deixaria uma das reservas negativa em alguma data.');
+  await save(tx,account,loans.map(l=>{if(l.id!==loanId)return l;const next={...l};if(boxId)next.caixinhaId=boxId;else delete next.caixinhaId;return next;}));
+  for(const row of linked)if(row.id!==undefined){const next={...row};if(boxId)next.caixinhaId=boxId;else delete next.caixinhaId;await tx.reservas.put(next);}
  });
 }
