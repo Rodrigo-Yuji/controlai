@@ -26,6 +26,7 @@ import { db, storageKind, categoriasDespesa, categoriasReceita, type Categoria, 
 import { dataBR, hoje, mesAtual, moeda, paraCentavos } from './utils';
 import Assistant from './FinancialAssistant';
 import ReserveBoxesPanel,{type ReserveAction} from './ReserveBoxesPanel';
+import {inSeparateBox,separateBoxIds} from './reserve-boxes';
 import {recordFullPayment,recordPartialPayment,undoPartialPayment,reopenPartialBalance} from './partial-payments';
 import SyncPanel from './SyncPanel';
 import SettingsSection from './SettingsSection';
@@ -206,10 +207,10 @@ function App({openLogin=false}:{openLogin?:boolean}) {
   const distribuicaoCasal=contaAtual?.distribuicoesCasal?.find(d=>d.mes===mes);
   const variavelComum=isCasal?(distribuicaoCasal?.comumCentavos??splitSharedBudget(variavelTotal,contaAtual?.percentualPessoalCasal??5000,contaAtual?.valorPessoalCasalCentavos===undefined?undefined:Math.min(variavelTotal,contaAtual.valorPessoalCasalCentavos)).comum):variavelTotal;
   const saldosPessoais=contaAtual&&isCasal?personalBalances(contaAtual,`${mes}-31`):[];
-  const saldoConta=registeredBalance(registros,reservas,isCasal?(contaAtual?.transferenciasPessoais??[]):[],mes,contaAtual?.inicioControle,isCasal?(contaAtual?.emprestimosReserva??[]):[]);
+  const saldoConta=registeredBalance(registros,reservas,isCasal?(contaAtual?.transferenciasPessoais??[]):[],mes,contaAtual?.inicioControle,isCasal?(contaAtual?.emprestimosReserva??[]):[],separateBoxIds(contaAtual));
   const ciclo=payCycleWeeks(mes,registros.filter(e=>inControlPeriod(contaAtual,e)),variavelComum,budgetToday);
   const semanas=ciclo.semanas;
-  const reservado=reservas.reduce((total,r)=>total+r.valorCentavos,0);
+  const separadas=separateBoxIds(contaAtual),reservado=reservas.filter(r=>!inSeparateBox(r,separadas)).reduce((total,r)=>total+r.valorCentavos,0);
   const report=financialReports(registros,contaAtual,mes,reportBasis);
   const porCategoria=report.categories,anual=report.annual,ano=report.year;
   const totalAnualReceitas=anual.reduce((s,l)=>s+l.receitas,0)*100;

@@ -5,7 +5,7 @@ import {createSqliteDatabase,type SqlDriver} from './storage/sqlite.ts';
 import {registeredBalance} from './account-balance.ts';
 import {validateSnapshot} from './sync/snapshot.ts';
 import {movesSpendable,spendFromReserve} from './reserve-spending.ts';
-import {boxBalance,moveReserve,removeBox,removeReserveRow,saveBox,validateBoxes} from './reserve-boxes.ts';
+import {separateBoxIds,boxBalance,moveReserve,removeBox,removeReserveRow,saveBox,validateBoxes} from './reserve-boxes.ts';
 import {lendFromReserve,registerLoanRepayment,setLoanBox} from './reserve-loans.ts';
 import type {Conta,Lancamento} from './db.ts';
 function device(){const raw=new DatabaseSync(':memory:');const driver:SqlDriver={all:async(sql,v=[])=>raw.prepare(sql).all(...v),run:async(sql,v=[])=>{const r=raw.prepare(sql).run(...v);return {changes:Number(r.changes),lastId:Number(r.lastInsertRowid)};},begin:async()=>{raw.exec('BEGIN IMMEDIATE');},commit:async()=>{raw.exec('COMMIT');},rollback:async()=>{raw.exec('ROLLBACK');}};return createSqliteDatabase(async()=>driver);}
@@ -77,4 +77,22 @@ test('synchronized copies check caixinhas and their movements',async()=>{
  assert.throws(()=>validateSnapshot({...base,contas:[account],reservas:[{...row,valorCentavos:-1000}]}),/Implantação/);
  assert.throws(()=>validateBoxes({...account,caixinhas:[{id:'c1',nome:'Viagem'},{id:'c2',nome:'VIAGEM'}]}),/esse nome/);
  assert.throws(()=>validateSnapshot({...base,contas:[{...account,emprestimosReserva:[{id:'L',pessoa:'Ana',data:'2026-11-01',valorCentavos:100,devolucoes:[],caixinhaId:'x'}]}],reservas:[]}),/Caixinha do empréstimo/);
+});
+
+test('a caixinha kept apart counts in neither the reserve nor the total',async()=>{
+ const db=await seed(),next=ids(),own=await saveBox(db,'A',{nome:'Meu dinheiro',foraDaReserva:true},undefined,next);
+ const sep=async()=>{const a=(await db.contas.get('A'))!;return registeredBalance([income],await db.reservas.toArray(),[],'2026-12',undefined,a.emprestimosReserva??[],separateBoxIds(a));};
+ assert.equal((await db.contas.get('A'))!.caixinhas![0].foraDaReserva,true);
+ const before=await sep();
+ await moveReserve(db,'A',{caixinhaId:own.id,operacao:'implantacao',descricao:'Economias',valorCentavos:900000,data:'2026-11-01'});
+ assert.deepEqual(await sep(),before);
+ await moveReserve(db,'A',{caixinhaId:own.id,operacao:'deposito',descricao:'Guardar',valorCentavos:10000,data:'2026-11-02'});
+ let b=await sep();assert.equal(b.current,before.current-10000);assert.equal(b.reserve,before.reserve);assert.equal(b.total,before.total-10000);
+ await moveReserve(db,'A',{caixinhaId:own.id,operacao:'retirada',descricao:'Resgate',valorCentavos:30000,data:'2026-11-03'});
+ b=await sep();assert.equal(b.current,before.current+20000);assert.equal(b.total,before.total+20000);
+ await spendFromReserve(db,'A',{descricao:'Presente',valorCentavos:5000,data:'2026-11-04',caixinhaId:own.id});
+ await lendFromReserve(db,'A',{pessoa:'Ana',valorCentavos:7000,data:'2026-11-04',caixinhaId:own.id},next);
+ assert.deepEqual(await sep(),b);
+ await saveBox(db,'A',{nome:'Meu dinheiro'},own.id);assert.equal((await db.contas.get('A'))!.caixinhas![0].foraDaReserva,undefined);
+ assert.throws(()=>validateBoxes({id:'A',nome:'C',padrao:true,conjunta:true,caixinhas:[{id:'x',nome:'X',foraDaReserva:'sim' as unknown as true}]}),/fora da reserva/);
 });
