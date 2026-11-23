@@ -5,7 +5,7 @@ import {createSqliteDatabase,type SqlDriver} from './storage/sqlite.ts';
 import {registeredBalance} from './account-balance.ts';
 import {validateSnapshot} from './sync/snapshot.ts';
 import {movesSpendable,spendFromReserve} from './reserve-spending.ts';
-import {separateBoxIds,boxBalance,moveReserve,removeBox,removeReserveRow,saveBox,validateBoxes} from './reserve-boxes.ts';
+import {mainReserveName,saveMainReserve,separateBoxIds,boxBalance,moveReserve,removeBox,removeReserveRow,saveBox,validateBoxes} from './reserve-boxes.ts';
 import {lendFromReserve,registerLoanRepayment,setLoanBox} from './reserve-loans.ts';
 import type {Conta,Lancamento} from './db.ts';
 function device(){const raw=new DatabaseSync(':memory:');const driver:SqlDriver={all:async(sql,v=[])=>raw.prepare(sql).all(...v),run:async(sql,v=[])=>{const r=raw.prepare(sql).run(...v);return {changes:Number(r.changes),lastId:Number(r.lastInsertRowid)};},begin:async()=>{raw.exec('BEGIN IMMEDIATE');},commit:async()=>{raw.exec('COMMIT');},rollback:async()=>{raw.exec('ROLLBACK');}};return createSqliteDatabase(async()=>driver);}
@@ -95,4 +95,16 @@ test('a caixinha kept apart counts in neither the reserve nor the total',async()
  assert.deepEqual(await sep(),b);
  await saveBox(db,'A',{nome:'Meu dinheiro'},own.id);assert.equal((await db.contas.get('A'))!.caixinhas![0].foraDaReserva,undefined);
  assert.throws(()=>validateBoxes({id:'A',nome:'C',padrao:true,conjunta:true,caixinhas:[{id:'x',nome:'X',foraDaReserva:'sim' as unknown as true}]}),/fora da reserva/);
+});
+
+test('the main reserve can be renamed and get a goal',async()=>{
+ const db=await seed();
+ await saveMainReserve(db,'A',{nome:'  Reserva do casal ',metaCentavos:1000000});
+ let a=(await db.contas.get('A'))!;assert.deepEqual(a.reservaPrincipal,{nome:'Reserva do casal',metaCentavos:1000000});assert.equal(mainReserveName(a),'Reserva do casal');
+ await assert.rejects(()=>saveBox(db,'A',{nome:'reserva do CASAL'},undefined,ids()),/esse nome/);
+ await saveBox(db,'A',{nome:'Reserva principal'},undefined,ids());
+ await assert.rejects(()=>saveMainReserve(db,'A',{nome:''}),/nome da reserva/);
+ await saveMainReserve(db,'A',{nome:'Emergência'});a=(await db.contas.get('A'))!;assert.deepEqual(a.reservaPrincipal,{nome:'Emergência'});
+ assert.throws(()=>validateBoxes({...a,reservaPrincipal:{metaCentavos:-1}}),/Meta da reserva principal/);
+ assert.equal(mainReserveName({}),'Reserva principal');
 });

@@ -4,7 +4,7 @@ import MoneyInput from './MoneyInput';
 import {db,type Conta,type EmprestimoReserva,type Reserva} from './db';
 import {MAX_LOAN_INSTALLMENTS,addMonths,installmentSchedule,loanInstallments,loanLateness,nextInstallment,setLoanInstallments,MAX_LOAN_PERSON_LENGTH,loanOutstanding,setLoanBox,repaymentExtra,splitRepayment,loansByPerson,lendFromReserve,registerLoanRepayment,removeLoan,removeLoanRepayment,totalOutstanding} from './reserve-loans';
 import {dataBR,hoje,moeda,paraCentavos} from './utils';
-import {MAIN_RESERVE,MAIN_RESERVE_LABEL,boxBalance,boxName} from './reserve-boxes';
+import {MAIN_RESERVE,mainReserveName,boxBalance,boxName} from './reserve-boxes';
 
 // Settled loans shown per person before "Mostrar mais".
 const SETTLED_PREVIEW=3;
@@ -63,7 +63,7 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
      {loan.observacao&&<NoteText className="card-note" text={loan.observacao}/>}
      {loan.devolucoes.map(r=><small key={r.id}>{r.valorCentavos>0?`Devolução de ${moeda(r.valorCentavos)}`:'Valor extra'}{repaymentExtra(r)>0?` + acréscimo de ${moeda(repaymentExtra(r))}`:''} em {dataBR(r.data)} <button type="button" className="textbutton" onClick={()=>void deleteRepayment(loan.id,r.id)}>Excluir devolução</button></small>)}
      {moving===loan.id?<form className="fields" onSubmit={e=>void moveLoan(e,loan.id)}>
-      <label>Reserva deste empréstimo<select value={moveTo} onChange={e=>setMoveTo(e.target.value)}><option value={MAIN_RESERVE}>{MAIN_RESERVE_LABEL}</option>{boxes.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select><small>O empréstimo e as devoluções já registradas passam para a reserva escolhida.</small></label>
+      <label>Reserva deste empréstimo<select value={moveTo} onChange={e=>setMoveTo(e.target.value)}><option value={MAIN_RESERVE}>{mainReserveName(account)}</option>{boxes.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select><small>O empréstimo e as devoluções já registradas passam para a reserva escolhida.</small></label>
       <button className="primary">Salvar reserva</button>
       <button type="button" className="secondary" onClick={()=>{setMoving(null);setError('');}}>Cancelar</button>
      </form>:planning===loan.id?<form className="fields" onSubmit={e=>void savePlan(e,loan.id)}>
@@ -91,7 +91,7 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
    <form className="fields" onSubmit={lend}>
     <label>Quem recebeu<input required list="reserve-loan-people" maxLength={MAX_LOAN_PERSON_LENGTH} value={person} onChange={e=>setPerson(e.target.value)} placeholder="Nome da pessoa"/></label>
     <datalist id="reserve-loan-people">{people.map(p=><option key={p.pessoa} value={p.pessoa}/>)}</datalist>
-    {boxes.length>0&&<label>Sai de qual reserva<select value={source} onChange={e=>setLoanBoxChoice(e.target.value)}><option value={MAIN_RESERVE}>{MAIN_RESERVE_LABEL}</option>{boxes.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select><small>As devoluções voltam para esta mesma reserva. Disponível: {moeda(reserveBalance)}</small></label>}
+    {boxes.length>0&&<label>Sai de qual reserva<select value={source} onChange={e=>setLoanBoxChoice(e.target.value)}><option value={MAIN_RESERVE}>{mainReserveName(account)}</option>{boxes.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}</select><small>As devoluções voltam para esta mesma reserva. Disponível: {moeda(reserveBalance)}</small></label>}
     <label>Valor emprestado (R$)<MoneyInput required min="0.01" max={before?undefined:Math.max(0,reserveBalance)/100} value={value} onChange={setValue}/></label>
     <label>Data do empréstimo<input required type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
     <label className="check loan-split"><input type="checkbox" checked={split} onChange={e=>{setSplit(e.target.checked);if(e.target.checked&&!splitFirst)setSplitFirst(addMonths(date,1));}}/><span>Parcelar devolução<small>Defina em quantas vezes a pessoa vai devolver. O app mostra a próxima parcela e avisa quando alguma atrasar.</small></span></label>
