@@ -5,7 +5,7 @@ import {createSqliteDatabase,type SqlDriver} from './storage/sqlite.ts';
 import {registeredBalance} from './account-balance.ts';
 import {validateSnapshot} from './sync/snapshot.ts';
 import {validateManagement} from './management.ts';
-import {lendFromReserve,registerLoanRepayment,removeLoan,removeLoanRepayment,loansByPerson,loanOutstanding,netLent,reserveStaysNonNegative,totalOutstanding,validateReserveLoans} from './reserve-loans.ts';
+import {addMonths,installmentSchedule,loanInstallments,loanLateness,nextInstallment,setLoanInstallments,lendFromReserve,registerLoanRepayment,removeLoan,removeLoanRepayment,loansByPerson,loanOutstanding,netLent,reserveStaysNonNegative,totalOutstanding,validateReserveLoans} from './reserve-loans.ts';
 import type {Conta,EmprestimoReserva,Lancamento} from './db.ts';
 function device(){const raw=new DatabaseSync(':memory:');const driver:SqlDriver={all:async(sql,v=[])=>raw.prepare(sql).all(...v),run:async(sql,v=[])=>{const r=raw.prepare(sql).run(...v);return {changes:Number(r.changes),lastId:Number(r.lastInsertRowid)};},begin:async()=>{raw.exec('BEGIN IMMEDIATE');},commit:async()=>{raw.exec('COMMIT');},rollback:async()=>{raw.exec('ROLLBACK');}};return createSqliteDatabase(async()=>driver);}
 const ids=()=>{let n=0;return ()=>`id${++n}`;};
@@ -145,4 +145,34 @@ test('a loan made before the app is tracked without touching the reserve; repaym
  assert.equal(after.reserve,before.reserve+20000);assert.equal(after.total,before.total+20000);assert.equal(after.current,before.current);
  assert.equal(totalOutstanding(account2.emprestimosReserva),480000);
  assert.throws(()=>validateReserveLoans({...account2,emprestimosReserva:[{...account2.emprestimosReserva![0],anterior:'sim' as unknown as true}]}),/anterior/);
+});
+
+test('installment schedule splits cents and keeps the day of the month',()=>{
+ assert.equal(addMonths('2026-01-31',1),'2026-02-28');assert.equal(addMonths('2026-11-10',2),'2027-01-10');
+ const s=installmentSchedule(10003,{parcelas:8,primeiroVencimento:'2026-12-10'});
+ assert.equal(s.length,8);assert.equal(s.reduce((t,p)=>t+p.valorCentavos,0),10003);
+ assert.deepEqual(s.map(p=>p.valorCentavos).slice(0,4),[1251,1251,1251,1250]);assert.equal(s[7].vencimento,'2027-07-10');
+});
+test('repayments pay installments in order and unpaid past-due ones are late',()=>{
+ const loan:EmprestimoReserva={id:'L',pessoa:'Ana',data:'2026-11-01',valorCentavos:80000,devolucoes:[{id:'r1',data:'2026-12-05',valorCentavos:15000}],parcelamento:{parcelas:8,primeiroVencimento:'2026-12-10'}};
+ const before=loanInstallments(loan,'2026-12-10');
+ assert.deepEqual(before.slice(0,3).map(p=>[p.status,p.pagoCentavos]),[['paga',10000],['parcial',5000],['a-vencer',0]]);
+ assert.equal(loanLateness(loan,'2026-12-10').parcelas,0);
+ const late=loanLateness(loan,'2027-02-11');assert.deepEqual(late,{parcelas:2,centavos:15000,desde:'2027-01-10'});
+ assert.equal(nextInstallment(loan,'2027-02-11')?.numero,2);
+ assert.deepEqual(loanInstallments({...loan,parcelamento:undefined},'2027-02-11'),[]);
+ const paid={...loan,devolucoes:[{id:'r1',data:'2026-12-05',valorCentavos:80000}]};assert.equal(loanLateness(paid,'2030-01-01').parcelas,0);assert.equal(nextInstallment(paid,'2030-01-01'),undefined);
+});
+test('installment plans are validated and can be added or removed later',async()=>{
+ const db=await seed(),next=ids();
+ await assert.rejects(()=>lendFromReserve(db,'A',{pessoa:'Ana',valorCentavos:8000,data:'2026-11-03',parcelamento:{parcelas:1,primeiroVencimento:'2026-12-03'}},next),/2 a 60/);
+ await assert.rejects(()=>lendFromReserve(db,'A',{pessoa:'Ana',valorCentavos:8000,data:'2026-11-03',parcelamento:{parcelas:8,primeiroVencimento:'2026-11-01'}},next),/primeiro vencimento/);
+ const loan=await lendFromReserve(db,'A',{pessoa:'Ana',valorCentavos:8000,data:'2026-11-03',parcelamento:{parcelas:8,primeiroVencimento:'2026-12-03'}},next);
+ assert.deepEqual((await db.contas.get('A'))!.emprestimosReserva![0].parcelamento,{parcelas:8,primeiroVencimento:'2026-12-03'});
+ const reserve=await reserveTotal(db);
+ await setLoanInstallments(db,'A',loan.id,{parcelas:4,primeiroVencimento:'2026-12-15'});
+ assert.equal((await db.contas.get('A'))!.emprestimosReserva![0].parcelamento?.parcelas,4);assert.equal(await reserveTotal(db),reserve);
+ await setLoanInstallments(db,'A',loan.id,undefined);assert.equal('parcelamento' in (await db.contas.get('A'))!.emprestimosReserva![0],false);
+ const account=(await db.contas.get('A'))!;
+ assert.throws(()=>validateReserveLoans({...account,emprestimosReserva:[{...loan,parcelamento:{parcelas:2.5,primeiroVencimento:'2026-12-03'}}]}),/parcelas/);
 });
