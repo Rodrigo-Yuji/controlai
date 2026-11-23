@@ -9,7 +9,8 @@ export interface PlanejamentoMensal {valoresDistribuicao?:{variaveis:number;rese
 export interface Configuracao {valoresDistribuicao?:{variaveis:number;reserva:number}; planejamentos?:PlanejamentoMensal[]; id: string; contaId?: string; baseReceita?: 'atual'|'prevista'; fixos: number; variaveis: number; reserva: number; }
 export interface Reserva { contaId?: string; id?: number; descricao: string; valorCentavos: number; data: string; emprestimoId?: string; devolucaoId?: string; gasto?: true; categoria?: string; }
 export interface DevolucaoEmprestimo { id: string; data: string; valorCentavos: number; acrescimoCentavos?: number; }
-export interface EmprestimoReserva { id: string; pessoa: string; data: string; valorCentavos: number; observacao?: string; devolucoes: DevolucaoEmprestimo[]; anterior?: true; }
+export interface EmprestimoReserva { id: string; pessoa: string; data: string; valorCentavos: number; observacao?: string; devolucoes: DevolucaoEmprestimo[]; anterior?: true; parcelamento?: ParcelamentoEmprestimo; }
+export interface ParcelamentoEmprestimo { parcelas: number; primeiroVencimento: string; }
 export interface Fechamento { id: string; contaId: string; mes: string; fechadoEm: string; }
 export interface Parcela { grupo: string; numero: number; total: number; }
 export type TipoConta='solo'|'casal'|'gestora';

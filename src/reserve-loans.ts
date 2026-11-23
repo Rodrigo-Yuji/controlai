@@ -1,6 +1,6 @@
 import {validDate} from './assistant.ts';
 import {ensureOpenMonth} from './account-guards.ts';
-import type {Conta,DevolucaoEmprestimo,EmprestimoReserva,Reserva} from './db.ts';
+import type {Conta,DevolucaoEmprestimo,EmprestimoReserva,ParcelamentoEmprestimo,Reserva} from './db.ts';
 import type {Database} from './storage/types.ts';
 
 // Family loans taken from the couple's reserve.
@@ -26,6 +26,45 @@ export const loanExtra=(loan:EmprestimoReserva)=>loan.devolucoes.reduce((sum,r)=
 // Splits what the person handed back into the part that pays the loan and the extra.
 export const splitRepayment=(outstanding:number,received:number)=>{const principal=Math.max(0,Math.min(outstanding,received));return {valorCentavos:principal,acrescimoCentavos:received-principal};};
 
+// Installment plan: the person returns the loan in N monthly parts. The plan is only
+// a schedule; repayments keep being registered as before and are applied to the
+// installments in order, so an installment past its due date and not fully paid is late.
+export const MAX_LOAN_INSTALLMENTS=60;
+export type InstallmentStatus='paga'|'parcial'|'atrasada'|'a-vencer';
+export interface LoanInstallment{numero:number;vencimento:string;valorCentavos:number;pagoCentavos:number;status:InstallmentStatus}
+// Same day N months later; days past the end of a month fall on its last day.
+export function addMonths(date:string,months:number){
+ const [y,m,d]=date.split('-').map(Number),first=new Date(Date.UTC(y,m-1+months,1));
+ const last=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+ return `${first.toISOString().slice(0,7)}-${String(Math.min(d,last)).padStart(2,'0')}`;
+}
+// Splits the amount in equal parts; leftover cents go to the first installments.
+export function installmentSchedule(totalCentavos:number,plan:ParcelamentoEmprestimo){
+ const base=Math.floor(totalCentavos/plan.parcelas),rest=totalCentavos-base*plan.parcelas;
+ return Array.from({length:plan.parcelas},(_,i)=>({numero:i+1,vencimento:addMonths(plan.primeiroVencimento,i),valorCentavos:base+(i<rest?1:0)}));
+}
+export function loanInstallments(loan:EmprestimoReserva,today:string):LoanInstallment[]{
+ if(!loan.parcelamento)return [];
+ let paid=loanRepaid(loan);
+ return installmentSchedule(loan.valorCentavos,loan.parcelamento).map(p=>{
+  const pagoCentavos=Math.min(p.valorCentavos,paid);paid-=pagoCentavos;
+  const status:InstallmentStatus=pagoCentavos>=p.valorCentavos?'paga':p.vencimento<today?'atrasada':pagoCentavos>0?'parcial':'a-vencer';
+  return {...p,pagoCentavos,status};
+ });
+}
+export interface LoanLateness{parcelas:number;centavos:number;desde?:string}
+export function loanLateness(loan:EmprestimoReserva,today:string):LoanLateness{
+ const late=loanInstallments(loan,today).filter(p=>p.status==='atrasada');
+ return {parcelas:late.length,centavos:late.reduce((s,p)=>s+p.valorCentavos-p.pagoCentavos,0),desde:late[0]?.vencimento};
+}
+export const nextInstallment=(loan:EmprestimoReserva,today:string)=>loanInstallments(loan,today).find(p=>p.status!=='paga');
+function validatePlan(plan:unknown,loanDate:string){
+ if(plan===undefined)return;
+ const p=plan as ParcelamentoEmprestimo;
+ if(!p||typeof p!=='object'||!Number.isSafeInteger(p.parcelas)||p.parcelas<2||p.parcelas>MAX_LOAN_INSTALLMENTS)throw Error(`Informe de 2 a ${MAX_LOAN_INSTALLMENTS} parcelas.`);
+ if(!validDate(p.primeiroVencimento)||p.primeiroVencimento<loanDate)throw Error('O primeiro vencimento precisa ser uma data válida, a partir do dia do empréstimo.');
+}
+
 export function validateReserveLoans(account:Conta){
  const loans=account.emprestimosReserva;
  if(loans===undefined)return;
@@ -40,6 +79,7 @@ export function validateReserveLoans(account:Conta){
   if(!positiveCents(loan.valorCentavos)||!validDate(loan.data))throw Error('Empréstimo com valor ou data inválidos.');
   if(loan.observacao!==undefined&&(typeof loan.observacao!=='string'||loan.observacao.length>200))throw Error('Observação do empréstimo inválida.');
   if(loan.anterior!==undefined&&loan.anterior!==true)throw Error('Marcação de empréstimo anterior inválida.');
+  validatePlan(loan.parcelamento,loan.data);
   if(!Array.isArray(loan.devolucoes))throw Error('Devoluções do empréstimo inválidas.');
   let repaid=0;
   for(const repayment of loan.devolucoes){
@@ -105,18 +145,19 @@ const reserveRows=(tx:Pick<Database,'reservas'>,accountId:string)=>tx.reservas.w
 
 // `anterior`: money lent before using the app. It is tracked as a debt but never
 // leaves the reserve; repayments still go to the reserve.
-export interface NewLoan{pessoa:string;valorCentavos:number;data:string;observacao?:string;anterior?:boolean}
+export interface NewLoan{pessoa:string;valorCentavos:number;data:string;observacao?:string;anterior?:boolean;parcelamento?:ParcelamentoEmprestimo}
 export async function lendFromReserve(db:Store,accountId:string,input:NewLoan,newId:()=>string=()=>crypto.randomUUID()){
  const pessoa=normalizePerson(input.pessoa),observacao=input.observacao?.trim();
  if(!pessoa||pessoa.length>MAX_LOAN_PERSON_LENGTH)throw Error('Informe quem recebeu o empréstimo (até 60 caracteres).');
  if(!positiveCents(input.valorCentavos))throw Error('Informe um valor maior que zero.');
  if(!validDate(input.data))throw Error('Informe uma data válida.');
+ validatePlan(input.parcelamento,input.data);
  return db.transaction(stores(db),async tx=>{
   const account=await coupleAccount(tx,accountId);
   await ensureOpenMonth(tx,accountId,input.data);
   if(!input.anterior){const rows=await reserveRows(tx,accountId);
   if(!reserveStaysNonNegative([...rows,{data:input.data,valorCentavos:-input.valorCentavos}]))throw Error('Saldo da reserva insuficiente para este empréstimo. Se o empréstimo foi feito antes de usar o ControlAI, marque essa opção.');}
-  const loan:EmprestimoReserva={id:newId(),pessoa,valorCentavos:input.valorCentavos,data:input.data,...(observacao?{observacao}:{}),devolucoes:[],...(input.anterior?{anterior:true as const}:{})};
+  const loan:EmprestimoReserva={id:newId(),pessoa,valorCentavos:input.valorCentavos,data:input.data,...(observacao?{observacao}:{}),devolucoes:[],...(input.anterior?{anterior:true as const}:{}),...(input.parcelamento?{parcelamento:{parcelas:input.parcelamento.parcelas,primeiroVencimento:input.parcelamento.primeiroVencimento}}:{})};
   await save(tx,account,[...(account.emprestimosReserva??[]),loan]);
   if(!input.anterior)await tx.reservas.add({contaId:accountId,descricao:`Empréstimo para ${pessoa}`,valorCentavos:-input.valorCentavos,data:input.data,emprestimoId:loan.id});
   return loan;
@@ -164,5 +205,16 @@ export async function removeLoan(db:Store,accountId:string,loanId:string){
   const linked=(await reserveRows(tx,accountId)).filter(r=>r.emprestimoId===loanId);
   await save(tx,account,loans.filter(l=>l.id!==loanId));
   for(const row of linked)if(row.id!==undefined)await tx.reservas.delete(row.id);
+ });
+}
+
+// Adds, changes or (with undefined) removes the installment plan of a loan. It only
+// changes the schedule: no money moves, so the reserve and closed months are untouched.
+export async function setLoanInstallments(db:Store,accountId:string,loanId:string,plan:ParcelamentoEmprestimo|undefined){
+ return db.transaction(stores(db),async tx=>{
+  const account=await coupleAccount(tx,accountId),loans=account.emprestimosReserva??[],loan=loans.find(l=>l.id===loanId);
+  if(!loan)throw Error('Empréstimo não encontrado. Reabra a lista.');
+  validatePlan(plan,loan.data);
+  await save(tx,account,loans.map(l=>{if(l.id!==loanId)return l;const next={...l};if(plan)next.parcelamento={parcelas:plan.parcelas,primeiroVencimento:plan.primeiroVencimento};else delete next.parcelamento;return next;}));
  });
 }

@@ -102,9 +102,9 @@ html[data-theme="escuro"] .note-toggle{color:var(--brand-strong)}
 .recordnote.note-block{padding:6px 10px;border-left:3px solid color-mix(in srgb,var(--brand) 45%,transparent);background:color-mix(in srgb,var(--brand) 5%,transparent);border-radius:0 10px 10px 0}
 .recordnote .note-body{color:var(--muted-ink)}
 textarea.note-input,.fields textarea{min-height:64px;line-height:1.45;field-sizing:content;max-height:220px}
-.loan-before{display:flex;align-items:flex-start;gap:10px;font-weight:600}
-.loan-before input{width:20px;height:20px;min-height:0;margin-top:2px;accent-color:var(--brand)}
-.loan-before small{display:block;font-weight:400;color:var(--muted-ink);margin-top:2px}
+.loan-before,.loan-split{display:flex;align-items:flex-start;gap:10px;font-weight:600}
+.loan-before input,.loan-split input{width:20px;height:20px;min-height:0;margin-top:2px;accent-color:var(--brand)}
+.loan-before small,.loan-split small{display:block;font-weight:400;color:var(--muted-ink);margin-top:2px}
 
 /* Fonte: Manrope (variável, embutida no app — funciona offline e no APK) */
 body,button,input,select,textarea{font-family:"Manrope Variable",Manrope,Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
@@ -174,3 +174,12 @@ html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad
 .floating{right:max(18px,calc((100% - 1020px)/2 + 18px))}
 @media(max-width:700px){.floating{right:max(16px,calc((100% - 520px)/2 + 14px))}}
 .dialog-head-actions{display:flex;align-items:center;gap:6px}.voice-entry{width:32px;height:32px;min-width:32px;min-height:32px;padding:0;border-radius:50%;color:var(--brand)}
+/* Empréstimo parcelado: próxima parcela, atraso e lista de parcelas */
+.loan-badge.late{background:#c23c48;color:#fff}html[data-theme="escuro"] .loan-badge.late{background:#db4d58;color:#fff}
+.loan-record.late{border-left:3px solid #c23c48}
+.loan-plan{color:var(--muted-ink,#63728b)}.loan-record small.loan-late{color:#c23c48;font-weight:700}html[data-theme="escuro"] .loan-record small.loan-late{color:#ff9aa3}
+.loan-installments{margin:4px 0 2px;font-size:12px}.loan-installments>summary{cursor:pointer;color:var(--brand);font-weight:650}
+.loan-installments ol{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:3px}
+.loan-installments li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:4px 8px;border-radius:8px;background:color-mix(in srgb,var(--line,#dce3ee) 35%,transparent)}
+.installment-status{font-weight:700;font-size:11px}.loan-installments li.paga .installment-status{color:#187d4b}.loan-installments li.parcial .installment-status{color:#9d6800}.loan-installments li.atrasada .installment-status{color:#c23c48}.loan-installments li.a-vencer .installment-status{color:var(--muted-ink,#63728b)}
+.loan-installments li.paga{opacity:.7}
