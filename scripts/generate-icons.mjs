@@ -5,15 +5,15 @@ import {Resvg} from '@resvg/resvg-js';
 import fs from 'node:fs';
 import path from 'node:path';
 const repo=process.argv[2];
-// Clean mark drawn in a 512 box: flat brand green, open white "C" and a mint dot.
-const BRAND='#0d7a5f';
+// Mark drawn in a 512 box: a pie chart on white, three quarters in brand green and the
+// last quarter in mint, pulled out a little. Flat colors, no gradients.
+const BRAND='#0d7a5f',MINT='#5ee6b0',PAPER='#ffffff';
 const defs='';
-const mark=`<path d="M354.05 173.72A128 128 0 1 0 354.05 338.28" fill="none" stroke="#ffffff" stroke-width="52" stroke-linecap="round"/>
-<circle cx="256" cy="256" r="40" fill="#8ff2c9"/>`;
-const icon=(round=false)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${defs}${round?`<circle cx="256" cy="256" r="256" fill="${BRAND}"/>`:`<rect width="512" height="512" rx="116" fill="${BRAND}"/>`}${mark}</svg>`;
+const mark=`<path d="M268 268V134A134 134 0 1 1 134 268z" fill="${BRAND}"/><path d="M244 244V110A134 134 0 0 0 110 244z" fill="${MINT}"/>`;
+const icon=(round=false)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${defs}${round?`<circle cx="256" cy="256" r="256" fill="${PAPER}"/>`:`<rect width="512" height="512" rx="116" fill="${PAPER}"/>`}${mark}</svg>`;
 // Adaptive foreground: 108dp canvas, the mark must stay inside the 66dp safe zone.
-const foreground=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${defs}<g transform="translate(256 256) scale(.6) translate(-256 -256)">${mark}</g></svg>`;
-const splash=(w,h)=>{const s=Math.min(w,h)*.32,x=(w-s)/2,y=(h-s)/2;return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${defs}<rect width="${w}" height="${h}" fill="${BRAND}"/><g transform="translate(${x} ${y}) scale(${s/512})">${mark}</g></svg>`;};
+const foreground=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${defs}<g transform="translate(256 256) scale(.74) translate(-256 -256)">${mark}</g></svg>`;
+const splash=(w,h)=>{const s=Math.min(w,h)*.32,x=(w-s)/2,y=(h-s)/2;return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${defs}<rect width="${w}" height="${h}" fill="${PAPER}"/><g transform="translate(${x} ${y}) scale(${s/512})">${mark}</g></svg>`;};
 const png=(svg,w)=>new Resvg(svg,{fitTo:{mode:'width',value:w}}).render().asPng();
 const out=(rel,buf)=>{const f=path.join(repo,rel);fs.writeFileSync(f,buf);console.log(rel,buf.length);};
 out('public/icons/logo.svg',Buffer.from(icon()));
