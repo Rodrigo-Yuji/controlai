@@ -216,3 +216,40 @@ html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad
 @media(max-width:500px){.guest-you-figures{grid-template-columns:1fr 1fr}}
 div.reserves-summary-item{cursor:default}div.reserves-late{cursor:default}
 .reserves-loans{display:grid;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line,#dce3ee)}
+/* Lista de cartões compacta */
+.card-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin:10px 0 4px}
+.card-chip{display:flex;align-items:center;gap:4px;padding:8px 6px 8px 12px;border:1px solid var(--line,#dce3ee);border-radius:12px;background:var(--card,#fff);min-width:0}
+.card-chip-body{display:flex;flex-direction:column;min-width:0;flex:1}.card-chip-body strong{font-size:14px;line-height:1.25;overflow-wrap:anywhere}.card-chip-body small{color:var(--muted-ink,#63728b);font-size:11px}
+.card-chip .iconbutton{min-width:28px;min-height:28px;padding:3px;flex-shrink:0}.card-chip.archived{opacity:.6}
+.card-chips-legend{display:block;margin-bottom:8px}
+@media(max-width:500px){.card-chips{grid-template-columns:repeat(2,minmax(0,1fr))}.card-chip{padding:7px 2px 7px 10px;gap:0}.card-chip .iconbutton{min-width:26px;min-height:26px}}
+/* Consulta de fatura visual */
+.card-picker{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;margin:6px 0 10px;scrollbar-width:thin}
+.card-pick{flex:0 0 auto;min-width:128px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:14px;border:2px solid transparent;background:color-mix(in srgb,var(--card-color) 12%,var(--card,#fff));color:inherit;cursor:pointer;text-align:left}
+.card-pick .card-pick-name{font-size:12px;font-weight:700;color:var(--card-color)}.card-pick strong{font-size:15px}.card-pick small{font-size:11px;color:var(--muted-ink,#63728b)}
+.card-pick.active{border-color:var(--card-color);box-shadow:0 4px 14px color-mix(in srgb,var(--card-color) 30%,transparent)}
+html[data-theme="escuro"] .card-pick{background:color-mix(in srgb,var(--card-color) 22%,var(--card,#131d2b))}html[data-theme="escuro"] .card-pick .card-pick-name{color:#fff}
+.invoice-hero{position:relative;display:flex;flex-direction:column;gap:6px;padding:18px 18px 14px;border-radius:20px;color:#fff;background:linear-gradient(135deg,var(--card-color),color-mix(in srgb,var(--card-color) 55%,#000));box-shadow:0 10px 26px color-mix(in srgb,var(--card-color) 35%,transparent);margin-bottom:10px;overflow:hidden}
+.invoice-hero::after{content:'';position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:#ffffff14}
+.invoice-hero-top{display:flex;justify-content:space-between;align-items:center;gap:10px}.invoice-card-name{font-weight:800;font-size:16px;letter-spacing:.2px}
+.invoice-hero small{color:#ffffffcc;font-size:12px}.invoice-total{font-size:30px;line-height:1.1;font-weight:800}
+.invoice-status{font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;background:#ffffff26;color:#fff;white-space:nowrap}.invoice-status.paid{background:#dff7e9;color:#187d4b}.invoice-status.late{background:#ffe1e4;color:#c23c48}.invoice-status.partial{background:#fff3d5;color:#9d6800}
+.invoice-pay{position:relative;z-index:1;align-self:flex-start;border:0;border-radius:12px;padding:9px 16px;background:#fff;color:var(--card-color);font-weight:800;cursor:pointer;box-shadow:0 3px 10px #0000002a}
+.invoice-bar{height:8px;border-radius:8px;background:#ffffff33;overflow:hidden;margin-top:4px}.invoice-bar>span{display:block;height:100%;background:#7dffc4;border-radius:8px}
+.invoice-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:#ffffffe6}.invoice-legend .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}.dot.paid{background:#7dffc4}.dot.open{background:#ffd36b}
+.invoice-cycle{opacity:.85}
+.invoice-filter{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));margin:6px 0 8px}.invoice-filter .count{display:inline-block;min-width:18px;padding:0 5px;border-radius:10px;background:#0000000f;font-size:11px;margin-left:4px}
+.invoice-items{display:grid;gap:0}
+.invoice-item{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--line,#e8edf3);min-width:0}
+.invoice-item-dot{flex:0 0 8px;height:8px;border-radius:50%;background:#e9a528}.invoice-item.paid .invoice-item-dot{background:#12986e}
+.invoice-item-body{flex:1;min-width:0;display:flex;flex-direction:column}.invoice-item-body strong{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.invoice-item-body small{font-size:11px;color:var(--muted-ink,#63728b)}
+.invoice-item-value{font-size:13px;white-space:nowrap}.invoice-item.paid .invoice-item-value{color:var(--muted-ink,#63728b)}
+.invoice-tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:8px;background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand);font-weight:700;font-size:10px}
+.invoice-more{margin:6px 0 4px}
+.invoice-bars{display:grid;gap:6px;margin:6px 0 12px}.invoice-bar-row{display:grid;grid-template-columns:minmax(70px,30%) 1fr auto;gap:8px;align-items:center;font-size:12px}
+.invoice-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.invoice-bar-track{height:10px;border-radius:6px;background:color-mix(in srgb,var(--line,#dce3ee) 60%,transparent);overflow:hidden}.invoice-bar-track>span{display:block;height:100%;border-radius:6px;background:var(--brand)}
+.invoice-bars.upcoming .invoice-bar-track>span{background:#e9a528}
+.card-chip{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;row-gap:2px}.card-chip-days{grid-column:1/-1;font-size:11px;color:var(--muted-ink,#63728b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.invoice-hero-actions{display:flex;align-items:center;gap:6px;position:relative;z-index:1}.invoice-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:0;background:#ffffff22;color:#fff;cursor:pointer}.invoice-icon:hover{background:#ffffff40}
+.card-pick.add{align-items:center;justify-content:center;min-width:96px;border:2px dashed var(--line,#cfd8e3);background:transparent;color:var(--brand);font-weight:700;font-size:12px;gap:4px}
+.cards-panel .card-invoice{border-top:0!important;padding-top:0!important;margin-top:8px!important}
