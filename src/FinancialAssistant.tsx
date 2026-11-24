@@ -5,9 +5,10 @@ import { nativeSpeech, SpeechInput } from './native-speech';
 import { db, type Categoria, type Conta, type Fechamento, type Lancamento } from './db';
 import { hoje, moeda } from './utils';
 import {accountType,invoiceMonth} from './finance';
+import {validateManagement} from './management';
 import { commandDraft, detectColumns, draftError, fingerprint, MAX_ROWS, parseCsv, spreadsheetDrafts, toEntry, type Cell, type Column, type Columns, type Draft } from './assistant';
 
-import { detectPlanLayout, inferSheetMonth, monthlyPlanDrafts, type PlanResult } from './monthly-plan';
+import { cardKey, detectPlanLayout, inferSheetMonth, monthlyPlanDrafts, monthlyPlanWorkbook, type PlanResult } from './monthly-plan';
 
 interface Props { mode:'import'|'voice'; conta: Conta; categorias: Categoria[]; registros: Lancamento[]; fechamentos: Fechamento[]; onClose?: () => void }
 interface SpeechResult { isFinal: boolean; 0: { transcript: string } }
@@ -34,6 +35,10 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
   const [columns, setColumns] = useState<Columns>(detectColumns([]));
   const [format, setFormat] = useState('table');
   const [planMonth, setPlanMonth] = useState('');
+  // Card sections of a monthly plan: '' = sem cartão, 'new' = criar ao confirmar, or an existing card id.
+  const [cardChoice, setCardChoice] = useState<Record<string, string>>({});
+  const [newCards, setNewCards] = useState<Record<string, {nome:string; fechamento:string; vencimento:string}>>({});
+  const [visible, setVisible] = useState(100);
   const [referenceDay, setReferenceDay] = useState(1);
   const [planReport, setPlanReport] = useState<PlanResult | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -108,11 +113,11 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
   function reviewSheet() {
     setError(''); setMessage(''); setDrafts([]); setPlanReport(null);
     try {
-      const report = format === 'plan' ? monthlyPlanDrafts(rows, sheets[sheetIndex].name, planMonth, referenceDay, categorias) : null;
+      const report = format === 'plan' ? monthlyPlanDrafts(rows, sheets[sheetIndex].name, planMonth, referenceDay, categorias, managed ? [] : conta.cartoes ?? []) : null;
       const result = report ? report.drafts : spreadsheetDrafts(rows, columns, categorias, hoje());
       setPlanReport(report);
       if (!result.length) throw new Error('Não há lançamentos para revisar.');
-      setDrafts(result);
+      startReview(result);
     } catch (err) { setError(err instanceof Error ? err.message : 'Verifique as colunas.'); }
   }
   function reviewCommand() {
@@ -168,26 +173,60 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
   function updateDraft(index: number, patch: Partial<Draft>) {
     setDrafts(current => current.map((draft, i) => i === index ? {...draft, ...patch} : draft));
   }
+  function startReview(result: Draft[]) {
+    const choice: Record<string, string> = {}, fresh: Record<string, {nome:string; fechamento:string; vencimento:string}> = {};
+    if (!managed) for (const draft of result) if (draft.secao) {
+      const key = cardKey(draft.secao);
+      if (choice[key] === undefined) { choice[key] = draft.cartaoId || 'new'; fresh[key] = {nome:draft.secao.replace(/^cart[aã]o\s*/i, '').trim() || draft.secao, fechamento:'1', vencimento:'10'}; }
+    }
+    setCardChoice(choice); setNewCards(fresh); setVisible(100); setDrafts(result);
+  }
+  function reviewWorkbook() {
+    setError(''); setMessage(''); setDrafts([]); setPlanReport(null);
+    try {
+      const report = monthlyPlanWorkbook(sheets, referenceDay, categorias, managed ? [] : conta.cartoes ?? []);
+      setPlanReport(report); startReview(report.drafts);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível ler as abas.'); }
+  }
+  function chooseCard(key: string, value: string) {
+    setCardChoice(current => ({...current, [key]: value}));
+    setDrafts(current => current.map(draft => draft.secao && cardKey(draft.secao) === key ? {...draft, cartaoId: value === 'new' ? '' : value} : draft));
+  }
   async function save() {
     if (busy.current || !selected.length || hasErrors) return;
     busy.current = true; setSaving(true); setError(''); setMessage('');
     try {
       // Read account ownership, categories, closures and duplicates again inside one transaction.
       const result = await db.transaction([db.contas, db.categorias, db.fechamentos, db.lancamentos],async(tx)=>{
-        const freshAccount=await tx.contas.get(conta.id);
+        let freshAccount=await tx.contas.get(conta.id);
         if (!freshAccount) throw new Error('Esta conta não existe mais. Selecione outra conta.');
+        // Card sections marked "criar" become real cards first, then their rows use them.
+        const created: Record<string, string> = {};
+        if (accountType(freshAccount)!=='gestora') {
+          const used = new Set(drafts.filter(d => d.selecionada && d.secao && d.tipo === 'despesa').map(d => cardKey(d.secao!)));
+          const add = Object.entries(cardChoice).filter(([key, value]) => value === 'new' && used.has(key)).map(([key]) => {
+            const spec = newCards[key], fechamento = Number(spec?.fechamento), vencimento = Number(spec?.vencimento);
+            if (!spec?.nome.trim() || spec.nome.trim().length > 40) throw new Error('Informe o nome de cada cartão novo (até 40 caracteres).');
+            if (![fechamento, vencimento].every(n => Number.isInteger(n) && n >= 1 && n <= 31)) throw new Error(`Cartão ${spec.nome}: informe fechamento e vencimento entre 1 e 31.`);
+            const id = crypto.randomUUID(); created[key] = id;
+            return {id, nome:spec.nome.trim(), fechamento, vencimento};
+          });
+          if (add.length) { const next = [...(freshAccount.cartoes ?? []), ...add]; validateManagement({...freshAccount, cartoes:next}); await tx.contas.update(conta.id, {cartoes:next}); freshAccount = {...freshAccount, cartoes:next}; }
+        }
+        const account = freshAccount;
         const freshCategories = await tx.categorias.where('contaId').equals(conta.id).toArray();
         const freshClosed = (await tx.fechamentos.where('contaId').equals(conta.id).toArray()).map(item => item.mes);
-        const freshFingerprint=(entry:Lancamento)=>fingerprint(accountType(freshAccount)==='gestora'?{...entry,cartaoId:undefined}:entry);
+        const freshFingerprint=(entry:Lancamento)=>fingerprint(accountType(account)==='gestora'?{...entry,cartaoId:undefined}:entry);
         const keys = new Set((await tx.lancamentos.where('contaId').equals(conta.id).toArray()).map(freshFingerprint));
         const entries: Lancamento[] = [];
         let skipped = 0;
-        for (const draft of drafts.filter(item => item.selecionada)) {
+        for (const original of drafts.filter(item => item.selecionada)) {
+          const draft = original.secao && created[cardKey(original.secao)] && original.tipo === 'despesa' ? {...original, cartaoId:created[cardKey(original.secao)]} : original;
           const validation = draftError(draft, freshCategories, []);
           if (validation) throw new Error(`Linha ${draft.linha}: ${validation}`);
           const entry = toEntry(draft, conta.id, freshCategories);
-          if(accountType(freshAccount)==='gestora'){delete entry.cartaoId;delete entry.faturaMes;}
-          if(entry.cartaoId){const card=freshAccount.cartoes?.find(c=>c.id===entry.cartaoId&&!c.arquivado);if(!card)throw Error(`Linha ${draft.linha}: selecione um cartão ativo desta conta.`);if(!entry.faturaMes)entry.faturaMes=invoiceMonth(entry.data,card);}
+          if(accountType(account)==='gestora'){delete entry.cartaoId;delete entry.faturaMes;}
+          if(entry.cartaoId){const card=account.cartoes?.find(c=>c.id===entry.cartaoId&&!c.arquivado);if(!card)throw Error(`Linha ${draft.linha}: selecione um cartão ativo desta conta.`);if(!entry.faturaMes)entry.faturaMes=invoiceMonth(entry.data,card);}
           const key = freshFingerprint(entry);
           if (skipDuplicates && keys.has(key)) { skipped++; continue; }
           const closureError = draftError(draft, freshCategories, freshClosed);
@@ -195,10 +234,10 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
           entries.push(entry); keys.add(key);
         }
         if (entries.length) await tx.lancamentos.bulkAdd(entries);
-        return {saved:entries.length, skipped};
+        return {saved:entries.length, skipped, cards:Object.keys(created).length};
       });
       setDrafts([]); setCommand('');
-      setMessage(`${result.saved} lançamento(s) adicionado(s) à conta ${conta.nome}.${result.skipped ? ` ${result.skipped} possível(is) duplicata(s) ignorada(s).` : ''}`);
+      setMessage(`${result.saved} lançamento(s) adicionado(s) à conta ${conta.nome}.${result.cards ? ` ${result.cards} cartão(ões) criado(s).` : ''}${result.skipped ? ` ${result.skipped} possível(is) duplicata(s) ignorada(s).` : ''}`);
     } catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível salvar os lançamentos.'); }
     finally { busy.current = false; setSaving(false); }
   }
@@ -216,11 +255,12 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
         {format === 'plan' ? <>
           <label>Mês da planilha<input type="month" value={planMonth} onChange={event => {setPlanMonth(event.target.value); setDrafts([]); setPlanReport(null);}}/></label>
           <label>Dia de referência<input type="number" min={1} max={31} value={referenceDay} onChange={event => {setReferenceDay(Number(event.target.value)); setDrafts([]); setPlanReport(null);}}/></label>
-          <p className="muted">A aba informa apenas o mês. Escolha um dia de referência e ajuste as datas na revisão; dias acima do último dia do mês serão ajustados. Somente linhas marcadas como OK/pago ficam confirmadas. Parcelas são importadas como lançamentos individuais, sem criar parcelas futuras. Dívidas, totais, reservas e cálculos auxiliares não são lançamentos e aparecem no relatório de itens ignorados.</p>
+          <p className="muted">A aba informa apenas o mês. Escolha um dia de referência e ajuste as datas na revisão; dias acima do último dia do mês serão ajustados. Somente linhas marcadas como OK/pago ficam confirmadas. Notas “Parcela X de N” viram parcelas ligadas entre os meses; parcelas futuras só entram se estiverem nas abas. Dívidas, totais, reservas e cálculos auxiliares não são lançamentos e aparecem no relatório de itens ignorados.</p>
         </> : <><p className="muted">Confira as colunas. Sem Tipo: valores negativos viram despesas e positivos viram receitas. Sem Data: usamos hoje. Sem Status: usamos confirmado. Categorias são sugeridas quando não informadas.</p>
         <div className="assistant-columns">{(Object.keys(columnLabels) as Column[]).map(key => <label key={key}>Coluna de {columnLabels[key].toLowerCase()}{['descricao','valor'].includes(key) ? ' *' : ''}<select value={columns[key]} onChange={event => {setColumns(current => ({...current, [key]:Number(event.target.value)})); setDrafts([]);}}><option value={-1}>Não informada</option>{rows[0]?.map((header, index) => <option key={index} value={index}>{String(header ?? '') || `Coluna ${index + 1}`}</option>)}</select></label>)}</div>
         </>}
-        <button className="primary" type="button" onClick={reviewSheet}>Revisar planilha</button>
+        <button className="primary" type="button" onClick={reviewSheet}>{format === 'plan' ? 'Revisar esta aba' : 'Revisar planilha'}</button>
+        {format === 'plan' && sheets.filter(sheet => inferSheetMonth(sheet.name) && detectPlanLayout(sheet.rows)).length > 1 && <button className="secondary" type="button" onClick={reviewWorkbook}>Revisar todas as abas de meses ({sheets.filter(sheet => inferSheetMonth(sheet.name) && detectPlanLayout(sheet.rows)).length})</button>}
       </div>}
       </fieldset>
     </section>}
@@ -241,9 +281,10 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
     {error && <p className="error assistant-message" role="alert">{error}</p>}
     {message && <p className="success assistant-message" role="status">{message}</p>}
     {planReport && <section className="panel">
-      <p>Referência: {planReport.month}, dia {planReport.day}. {planReport.drafts.length} lançamento(s) identificado(s).</p>
+      <p>Referência: {planReport.month}, dia {planReport.day}. {planReport.drafts.length} lançamento(s) identificado(s), {planReport.drafts.filter(d => d.selecionada).length} já marcado(s){planReport.months ? ` em ${planReport.months.length} aba(s)` : ''}.{planReport.ignoredSheets?.length ? ` Abas ignoradas: ${planReport.ignoredSheets.join(', ')}.` : ''}</p>
+      <p className="muted">Valores planejados (ex.: Mercado 350) e blocos auxiliares (ex.: férias, bruto) vêm desmarcados para não contar em dobro. Parcelas anotadas como “Parcela X de N” ficam ligadas entre os meses.</p>
       <details><summary>{planReport.skipped.length} item(ns) ignorado(s) — conferir</summary>
-        <ul>{planReport.skipped.map((item, index) => <li key={index}>{item.coluna}{item.linha} · {item.descricao || 'Sem descrição'}: {item.motivo}</li>)}</ul>
+        <ul>{planReport.skipped.map((item, index) => <li key={index}>{item.aba ? `${item.aba} · ` : ''}{item.coluna}{item.linha} · {item.descricao || 'Sem descrição'}: {item.motivo}</li>)}</ul>
       </details>
     </section>}
     {drafts.length > 0 && <section className="panel assistant-review">
@@ -252,7 +293,17 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
       <fieldset disabled={saving} className="assistant-review-fields">
         <label className="check"><input type="checkbox" checked={skipDuplicates} onChange={event => setSkipDuplicates(event.target.checked)}/>Ignorar possíveis duplicatas</label>
         <p className="muted">Comparamos data, tipo, valor, descrição, categoria e cartão; nos planos mensais, também a célula de origem. Células diferentes podem representar gastos iguais. Desmarque a opção para permitir lançamentos iguais de propósito.</p>
-        {drafts.map((draft, index) => {
+        {Object.keys(cardChoice).length > 0 && <fieldset className="assistant-cards">
+          <legend>Cartões da planilha</legend>
+          <p className="muted">Escolha o cartão de cada seção. As compras entram na fatura do mês da aba. Cartões novos são criados ao confirmar; ajuste fechamento e vencimento depois em Cartões, se precisar.</p>
+          {Object.entries(cardChoice).map(([key, value]) => {const section = drafts.find(d => d.secao && cardKey(d.secao) === key)?.secao ?? key, count = drafts.filter(d => d.selecionada && d.secao && cardKey(d.secao) === key).length, spec = newCards[key];
+            return <div className="assistant-card-row" key={key}>
+              <label>{section} · {count} lançamento(s)<select value={value} onChange={event => chooseCard(key, event.target.value)}><option value="new">Criar cartão novo</option>{(conta.cartoes ?? []).filter(card => !card.arquivado).map(card => <option key={card.id} value={card.id}>{card.nome}</option>)}<option value="">Sem cartão</option></select></label>
+              {value === 'new' && spec && <div className="assistant-new-card"><label>Nome<input maxLength={40} value={spec.nome} onChange={event => setNewCards(current => ({...current, [key]: {...spec, nome:event.target.value}}))}/></label><label>Fecha dia<input type="number" min={1} max={31} value={spec.fechamento} onChange={event => setNewCards(current => ({...current, [key]: {...spec, fechamento:event.target.value}}))}/></label><label>Vence dia<input type="number" min={1} max={31} value={spec.vencimento} onChange={event => setNewCards(current => ({...current, [key]: {...spec, vencimento:event.target.value}}))}/></label></div>}
+            </div>;})}
+        </fieldset>}
+        {drafts.length > visible && <p className="muted">Mostrando {visible} de {drafts.length} linhas para revisão. Todas as marcadas serão importadas.</p>}
+        {drafts.slice(0, visible).map((draft, index) => {
           const validation = draftError(draft, categorias, closed);
           const available = categorias.filter(category => category.tipo === draft.tipo);
           return <fieldset className={`assistant-draft${!draft.selecionada ? ' assistant-deselected' : ''}`} key={index}>
@@ -272,6 +323,7 @@ export default function Assistant({ mode, conta, categorias, registros, fechamen
             {!validation && <p className="muted">{draft.tipo === 'receita' ? 'Receita' : 'Despesa'} de {moeda(toEntry(draft, conta.id, categorias).valorCentavos)} · {categorias.find(category => category.nome === draft.categoria && category.tipo === draft.tipo)?.natureza === 'fixo' ? 'Fixo' : 'Variável'}</p>}
           </fieldset>;
         })}
+        {drafts.length > visible && <button type="button" className="secondary" onClick={() => setVisible(v => v + 200)}>Mostrar mais {Math.min(200, drafts.length - visible)} linhas</button>}
         <p><strong>{selected.length} lançamento(s) para adicionar à conta {conta.nome}.</strong></p>
         {hasErrors && <p className="error">Corrija ou desmarque as linhas com erro para continuar.</p>}
         <button type="button" className="primary" disabled={saving || !selected.length || hasErrors} onClick={save}>{saving ? 'Adicionando…' : 'Confirmar lançamentos'}</button>
