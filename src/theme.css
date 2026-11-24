@@ -250,3 +250,6 @@ html[data-theme="escuro"] .card-pick{background:color-mix(in srgb,var(--card-col
 .invoice-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.invoice-bar-track{height:10px;border-radius:6px;background:color-mix(in srgb,var(--line,#dce3ee) 60%,transparent);overflow:hidden}.invoice-bar-track>span{display:block;height:100%;border-radius:6px;background:var(--brand)}
 .invoice-bars.upcoming .invoice-bar-track>span{background:#e9a528}
 .card-chip{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;row-gap:2px}.card-chip-days{grid-column:1/-1;font-size:11px;color:var(--muted-ink,#63728b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.invoice-hero-actions{display:flex;align-items:center;gap:6px;position:relative;z-index:1}.invoice-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:0;background:#ffffff22;color:#fff;cursor:pointer}.invoice-icon:hover{background:#ffffff40}
+.card-pick.add{align-items:center;justify-content:center;min-width:96px;border:2px dashed var(--line,#cfd8e3);background:transparent;color:var(--brand);font-weight:700;font-size:12px;gap:4px}
+.cards-panel .card-invoice{border-top:0!important;padding-top:0!important;margin-top:8px!important}
