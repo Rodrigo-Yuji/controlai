@@ -5,7 +5,7 @@ import {createSqliteDatabase,type SqlDriver} from './storage/sqlite.ts';
 import {registeredBalance} from './account-balance.ts';
 import {validateSnapshot} from './sync/snapshot.ts';
 import {movesSpendable,spendFromReserve} from './reserve-spending.ts';
-import {mainReserveName,saveMainReserve,separateBoxIds,boxBalance,moveReserve,removeBox,removeReserveRow,saveBox,validateBoxes} from './reserve-boxes.ts';
+import {yieldIn,mainReserveName,saveMainReserve,separateBoxIds,boxBalance,moveReserve,removeBox,removeReserveRow,saveBox,validateBoxes} from './reserve-boxes.ts';
 import {lendFromReserve,registerLoanRepayment,setLoanBox} from './reserve-loans.ts';
 import type {Conta,Lancamento} from './db.ts';
 function device(){const raw=new DatabaseSync(':memory:');const driver:SqlDriver={all:async(sql,v=[])=>raw.prepare(sql).all(...v),run:async(sql,v=[])=>{const r=raw.prepare(sql).run(...v);return {changes:Number(r.changes),lastId:Number(r.lastInsertRowid)};},begin:async()=>{raw.exec('BEGIN IMMEDIATE');},commit:async()=>{raw.exec('COMMIT');},rollback:async()=>{raw.exec('ROLLBACK');}};return createSqliteDatabase(async()=>driver);}
@@ -107,4 +107,16 @@ test('the main reserve can be renamed and get a goal',async()=>{
  await saveMainReserve(db,'A',{nome:'Emergência'});a=(await db.contas.get('A'))!;assert.deepEqual(a.reservaPrincipal,{nome:'Emergência'});
  assert.throws(()=>validateBoxes({...a,reservaPrincipal:{metaCentavos:-1}}),/Meta da reserva principal/);
  assert.equal(mainReserveName({}),'Reserva principal');
+});
+
+test('rendimento raises the reserve and the total, not the spendable balance nor the month income',async()=>{
+ const db=await seed(),trip=await saveBox(db,'A',{nome:'Viagem'},undefined,ids()),before=await balance(db);
+ const row=await moveReserve(db,'A',{caixinhaId:trip.id,operacao:'rendimento',descricao:'Rendimento de novembro',valorCentavos:1234,data:'2026-11-30'});
+ assert.equal(row.rendimento,true);assert.equal(movesSpendable(row),false);
+ const after=await balance(db);assert.equal(after.current,before.current);assert.equal(after.reserve,before.reserve+1234);assert.equal(after.total,before.total+1234);
+ const rows=await db.reservas.toArray();assert.equal(yieldIn(rows,'2026-11'),1234);assert.equal(yieldIn(rows,'2026'),1234);assert.equal(yieldIn(rows,'2026-10'),0);
+ const base={fechamentos:[],lancamentos:[],configuracoes:[],categorias:[],recorrencias:[],salarios:[]},account=(await db.contas.get('A'))!;
+ assert.doesNotThrow(()=>validateSnapshot({...base,contas:[account],reservas:[{...row}]}));
+ assert.throws(()=>validateSnapshot({...base,contas:[account],reservas:[{...row,valorCentavos:-5}]}),/Rendimento/);
+ assert.throws(()=>validateSnapshot({...base,contas:[account],reservas:[{...row,implantacao:true}]}),/Rendimento/);
 });
