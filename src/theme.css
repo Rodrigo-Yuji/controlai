@@ -211,3 +211,8 @@ html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad
 .assistant-cards{border:1px solid var(--line,#dce3ee);border-radius:14px;padding:12px 14px;margin:12px 0;display:grid;gap:10px}.assistant-cards legend{font-weight:700;padding:0 6px}
 .assistant-card-row{display:grid;gap:6px}.assistant-new-card{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
 @media(max-width:500px){.assistant-new-card{grid-template-columns:1fr 1fr}.assistant-new-card label:first-child{grid-column:span 2}}
+/* Convidados: cartão Você e reservas só para leitura */
+.guest-you-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:8px 0}.guest-you-figures>div{display:flex;flex-direction:column;gap:3px}.guest-you-figures small{color:var(--muted-ink,#63728b);font-size:12px}.guest-you-figures strong{font-size:17px}
+@media(max-width:500px){.guest-you-figures{grid-template-columns:1fr 1fr}}
+div.reserves-summary-item{cursor:default}div.reserves-late{cursor:default}
+.reserves-loans{display:grid;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line,#dce3ee)}
