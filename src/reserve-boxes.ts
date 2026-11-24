@@ -34,12 +34,19 @@ export const boxName=(account:Pick<Conta,'caixinhas'|'reservaPrincipal'>|undefin
 export const separateBoxIds=(account:Pick<Conta,'caixinhas'>|undefined)=>new Set((account?.caixinhas??[]).filter(c=>c.foraDaReserva).map(c=>c.id));
 export const inSeparateBox=(row:Pick<Reserva,'caixinhaId'>,separate:ReadonlySet<string>)=>!!row.caixinhaId&&separate.has(row.caixinhaId);
 export const isImplantation=(row:Pick<Reserva,'implantacao'>)=>row.implantacao===true;
-// Saved money brought in by implantação up to `through` (and from `from`, when given).
-export function reserveImplanted(rows:readonly Pick<Reserva,'implantacao'|'data'|'valorCentavos'>[]=[],through:string,from?:string){
+// Rendimento (`rendimento: true`): net yield paid by the bank on a reserve. Like
+// implantação it is new money: it raises the reserve and the total, never the
+// spendable balance, and it is not income of the month (budget and reports ignore it).
+export const isYield=(row:Pick<Reserva,'rendimento'>)=>row.rendimento===true;
+// Money that entered the reserves from outside the account (implantação and
+// rendimentos) up to `through` (and from `from`, when given).
+export function reserveImplanted(rows:readonly Pick<Reserva,'implantacao'|'rendimento'|'data'|'valorCentavos'>[]=[],through:string,from?:string){
  let total=0;
- for(const row of rows)if(row.implantacao&&row.data<=through&&(!from||row.data>=from))total+=row.valorCentavos;
+ for(const row of rows)if((row.implantacao||row.rendimento)&&row.data<=through&&(!from||row.data>=from))total+=row.valorCentavos;
  return total;
 }
+// Yield of one reserve (or of the given rows) whose date starts with `period` (YYYY or YYYY-MM).
+export const yieldIn=(rows:readonly Pick<Reserva,'rendimento'|'data'|'valorCentavos'>[],period:string)=>rows.filter(r=>r.rendimento&&r.data.startsWith(period)).reduce((s,r)=>s+r.valorCentavos,0);
 
 // The reserve may never go below zero on any date, deposits first on the same day.
 export function staysNonNegative(rows:readonly Pick<Reserva,'data'|'valorCentavos'>[]){
@@ -71,6 +78,7 @@ export function validateBoxes(account:Conta){
 }
 export function validateBoxRow(row:Reserva){
  if(row.caixinhaId!==undefined&&(typeof row.caixinhaId!=='string'||!row.caixinhaId||row.caixinhaId.length>64))throw Error('Caixinha do movimento inválida.');
+ if(row.rendimento!==undefined&&(row.rendimento!==true||!positiveCents(row.valorCentavos)||row.gasto||row.implantacao!==undefined||row.emprestimoId!==undefined))throw Error('Rendimento da reserva inválido.');
  if(row.implantacao===undefined)return;
  if(row.implantacao!==true||!positiveCents(row.valorCentavos)||row.gasto||row.emprestimoId!==undefined)throw Error('Implantação de saldo inválida.');
 }
@@ -126,7 +134,7 @@ export async function removeBox(db:Store,accountId:string,boxId:string){
  });
 }
 
-export type ReserveOperation='deposito'|'retirada'|'implantacao';
+export type ReserveOperation='deposito'|'retirada'|'implantacao'|'rendimento';
 export interface ReserveMove{caixinhaId:string;operacao:ReserveOperation;descricao:string;valorCentavos:number;data:string}
 export async function moveReserve(db:Store,accountId:string,input:ReserveMove){
  const descricao=cleanName(input.descricao);
@@ -138,7 +146,7 @@ export async function moveReserve(db:Store,accountId:string,input:ReserveMove){
   await ensureOpenMonth(tx,accountId,input.data);
   const value=input.operacao==='retirada'?-input.valorCentavos:input.valorCentavos;
   if(value<0){const rows=rowsOfBox(await tx.reservas.where('contaId').equals(accountId).toArray(),input.caixinhaId);if(!staysNonNegative([...rows,{data:input.data,valorCentavos:value}]))throw Error('Saldo insuficiente nesta reserva para esta data.');}
-  const row:Reserva={contaId:accountId,descricao,valorCentavos:value,data:input.data,...(input.caixinhaId?{caixinhaId:input.caixinhaId}:{}),...(input.operacao==='implantacao'?{implantacao:true as const}:{})};
+  const row:Reserva={contaId:accountId,descricao,valorCentavos:value,data:input.data,...(input.caixinhaId?{caixinhaId:input.caixinhaId}:{}),...(input.operacao==='implantacao'?{implantacao:true as const}:{}),...(input.operacao==='rendimento'?{rendimento:true as const}:{})};
   const id=await tx.reservas.add(row);
   return {...row,id:Number(id)};
  });

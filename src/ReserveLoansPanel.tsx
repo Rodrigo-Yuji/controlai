@@ -10,7 +10,7 @@ import {MAIN_RESERVE,mainReserveName,boxBalance,boxName} from './reserve-boxes';
 const SETTLED_PREVIEW=3;
 // Loans taken from the couple's reserve. They never create an expense, so the
 // monthly variable budget is untouched; repayments go straight back to the reserve.
-export default function ReserveLoansPanel({account,reserves}:{account:Conta;reserves:Reserva[]}){
+export default function ReserveLoansPanel({account,reserves,defaultOpen}:{account:Conta;reserves:Reserva[];defaultOpen?:boolean}){
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const [person,setPerson]=useState(''),[value,setValue]=useState(''),[date,setDate]=useState(hoje()),[note,setNote]=useState(''),[before,setBefore]=useState(false);
  const [split,setSplit]=useState(false),[splitCount,setSplitCount]=useState('8'),[splitFirst,setSplitFirst]=useState('');
@@ -84,7 +84,7 @@ export default function ReserveLoansPanel({account,reserves}:{account:Conta;rese
       {loan.devolucoes.length===0&&<button type="button" className="textbutton" onClick={()=>void deleteLoan(loan.id,loan.anterior)}>Excluir empréstimo</button>}
      </div>}
     </div></div>;};
- return <details className="panel couple-budget collapsible-panel"><summary>Empréstimos da reserva</summary>
+ return <details className="panel couple-budget collapsible-panel" open={defaultOpen}><summary>Empréstimos da reserva</summary>
   <p className="muted">Registre dinheiro da reserva emprestado a familiares. O valor sai da reserva sem virar despesa, então não consome o orçamento variável nem entra nos relatórios de gastos. Quando a pessoa devolver, registre a devolução: o valor volta direto para a reserva.</p>
   <p>{boxes.length>0?`Disponível em ${boxName(account,source)}`:'Reserva disponível'}: <strong>{moeda(reserveBalance)}</strong> · Em aberto com terceiros: <strong>{moeda(outstanding)}</strong></p>
   <fieldset disabled={busy} className="plain-fields">

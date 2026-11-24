@@ -192,8 +192,18 @@ html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad
 .reserve-box-goal{display:block;width:100%;height:5px;border-radius:5px;background:color-mix(in srgb,var(--line,#dce3ee) 70%,transparent);overflow:hidden}.reserve-box-goal>span{display:block;height:100%;background:var(--brand);border-radius:5px}
 .reserve-box-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 8px}.reserve-box-head h4{margin:0}.reserve-box-head .textbutton{display:inline-flex;align-items:center;gap:4px}
 .reserve-box-form h4{margin:0 0 4px}
-.reserve-actions{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px}.reserve-actions button{white-space:nowrap;min-width:0}
+.reserve-actions{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:4px}.reserve-actions button{white-space:nowrap;min-width:0}
 .loan-record small.loan-box{color:var(--brand-strong,#0a5f4a)}
-@media(max-width:700px){.reserve-boxes{grid-template-columns:repeat(2,minmax(0,1fr))}.reserve-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:700px){.reserve-boxes{grid-template-columns:repeat(2,minmax(0,1fr))}.reserve-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}.reserve-actions button:last-child{grid-column:span 2}}
 .reserve-box-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#eef1f6;color:#52617a}html[data-theme="escuro"] .reserve-box-tag{background:#ffffff14;color:#a3b3c7}
 .reserve-box.apart{border-style:dashed}
+/* Orçamento: Mês | Reservas, rendimentos e resumo das reservas no Início */
+.budget-view{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;max-width:360px;margin:0 0 14px}
+.reserve-box-yield{color:#187d4b!important;font-weight:650}html[data-theme="escuro"] .reserve-box-yield{color:#6fd3ad!important}.reserve-box-head h4 small{display:block;font-size:12px;margin-top:2px}
+.reserves-summary-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.reserves-summary-item{display:flex;flex-direction:column;gap:5px;text-align:left;padding:10px 12px;border:1px solid var(--line,#dce3ee);border-radius:12px;background:transparent;color:inherit;cursor:pointer}
+.reserves-summary-row{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.reserves-summary-row small{color:var(--muted-ink,#63728b)}.reserves-summary-row strong{white-space:nowrap}
+.reserves-late{display:block;width:100%;text-align:left;margin:0 0 8px;padding:9px 12px;border:0;border-radius:10px;background:#ffeaed;color:#c23c48;font-weight:700;cursor:pointer}html[data-theme="escuro"] .reserves-late{background:#db4d5833;color:#ff9aa3}
+/* Início enxuto: números do mês dentro do destaque; importação discreta em Lançamentos */
+.hero-figures{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;font-size:12px;opacity:.9}.hero-figures span{display:flex;flex-direction:column;gap:2px}.hero-figures strong{font-size:15px}
+.import-compact{margin:4px 0 12px;font-size:13px}.import-compact>summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--muted-ink,#63728b);padding:4px 2px;list-style:none}.import-compact>summary::-webkit-details-marker{display:none}.import-compact[open]{padding:14px;border:1px solid var(--line,#dce3ee);border-radius:14px;background:var(--card,#fff)}.import-compact[open]>summary{color:var(--brand);font-weight:650;margin-bottom:8px}

@@ -17,9 +17,9 @@ const positiveCents=(value:unknown):value is number=>typeof value==='number'&&Nu
 
 export const isReserveSpending=(row:Pick<Reserva,'gasto'>)=>row.gasto===true;
 // Reserve rows that move money between the spendable balance and the reserve.
-// Spending and loan rows leave the account and implantação brings in money that
-// was already saved, so none of them change it.
-export const movesSpendable=(row:Pick<Reserva,'gasto'|'emprestimoId'|'implantacao'>)=>!row.gasto&&!row.emprestimoId&&!row.implantacao;
+// Spending and loan rows leave the account, implantação brings in money that was
+// already saved and rendimento is yield paid by the bank, so none of them change it.
+export const movesSpendable=(row:Pick<Reserva,'gasto'|'emprestimoId'|'implantacao'|'rendimento'>)=>!row.gasto&&!row.emprestimoId&&!row.implantacao&&!row.rendimento;
 
 // Total spent from the reserve up to `through` (and from `from`, when given), positive cents.
 export function reserveSpent(rows:readonly Pick<Reserva,'gasto'|'data'|'valorCentavos'>[]=[],through:string,from?:string){

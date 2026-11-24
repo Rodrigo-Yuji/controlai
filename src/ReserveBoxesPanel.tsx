@@ -2,29 +2,30 @@ import {useState} from 'react';
 import {Pencil, Plus, Trash2} from 'lucide-react';
 import MoneyInput from './MoneyInput';
 import {db,type Conta,type Reserva} from './db';
-import {MAIN_RESERVE,mainReserveName,saveMainReserve,MAX_BOX_NAME,inSeparateBox,separateBoxIds,boxBalance,boxName,boxOf,moveReserve,removeBox,removeReserveRow,saveBox} from './reserve-boxes';
+import {rowsOfBox,yieldIn,MAIN_RESERVE,mainReserveName,saveMainReserve,MAX_BOX_NAME,inSeparateBox,separateBoxIds,boxBalance,boxName,boxOf,moveReserve,removeBox,removeReserveRow,saveBox} from './reserve-boxes';
 import {reserveSpent,spendFromReserve} from './reserve-spending';
 import {dataBR,hoje,moeda,paraCentavos} from './utils';
 
-export type ReserveAction='deposito'|'retirada'|'gasto'|'implantacao';
-const ACTIONS:{id:ReserveAction;label:string}[]=[{id:'deposito',label:'Guardar'},{id:'retirada',label:'Resgatar'},{id:'gasto',label:'Gastar'},{id:'implantacao',label:'Implantar saldo'}];
+export type ReserveAction='deposito'|'retirada'|'gasto'|'rendimento'|'implantacao';
+const ACTIONS:{id:ReserveAction;label:string}[]=[{id:'deposito',label:'Guardar'},{id:'retirada',label:'Resgatar'},{id:'gasto',label:'Gastar'},{id:'rendimento',label:'Rendimento'},{id:'implantacao',label:'Implantar saldo'}];
 const HINTS:Record<ReserveAction,string>={
  deposito:'Tira do saldo corrente e guarda nesta reserva.',
  retirada:'Devolve dinheiro desta reserva para o saldo corrente.',
  gasto:'Paga uma despesa avulsa direto com esta reserva. Não entra no orçamento mensal, nas semanas nem nos relatórios de gastos.',
+ rendimento:'Registra o que esta reserva rendeu no banco (use o valor líquido, já sem imposto). Entra na reserva e no total, sem mexer no saldo corrente, e não conta como receita do mês.',
  implantacao:'Registra dinheiro que já estava guardado antes de usar o app (por exemplo, o saldo atual de uma caixinha do banco). Entra na reserva e no total, sem tirar do saldo corrente.',
 };
-const BUTTONS:Record<ReserveAction,string>={deposito:'Guardar na reserva',retirada:'Registrar resgate',gasto:'Registrar gasto da reserva',implantacao:'Implantar saldo'};
+const BUTTONS:Record<ReserveAction,string>={deposito:'Guardar na reserva',retirada:'Registrar resgate',gasto:'Registrar gasto da reserva',rendimento:'Registrar rendimento',implantacao:'Implantar saldo'};
 
 // Reserva financeira: the main reserve plus as many caixinhas (travel, car...) as needed.
-export default function ReserveBoxesPanel({account,reserves,month,categories,operation,setOperation}:{account:Conta;reserves:Reserva[];month:string;categories:string[];operation:ReserveAction;setOperation:(op:ReserveAction)=>void}){
+export default function ReserveBoxesPanel({account,reserves,month,categories,operation,setOperation,defaultOpen}:{account:Conta;reserves:Reserva[];month:string;categories:string[];operation:ReserveAction;setOperation:(op:ReserveAction)=>void;defaultOpen?:boolean}){
  const boxes=account.caixinhas??[];
  const [selected,setSelected]=useState(MAIN_RESERVE),box=boxes.some(c=>c.id===selected)?selected:MAIN_RESERVE;
  const [desc,setDesc]=useState(''),[value,setValue]=useState(''),[date,setDate]=useState(hoje()),[category,setCategory]=useState('');
  const [boxForm,setBoxForm]=useState<{id?:string;main?:boolean;nome:string;meta:string;separada:boolean}|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const separate=separateBoxIds(account),total=reserves.filter(r=>!inSeparateBox(r,separate)).reduce((s,r)=>s+r.valorCentavos,0),apart=reserves.filter(r=>inSeparateBox(r,separate)).reduce((s,r)=>s+r.valorCentavos,0),balance=boxBalance(reserves,box);
- const monthRows=reserves.filter(r=>r.data.startsWith(month)).sort((a,b)=>b.data.localeCompare(a.data)),spentInMonth=reserveSpent(monthRows.filter(r=>!inSeparateBox(r,separate)),'9999-12-31');
+ const monthRows=reserves.filter(r=>r.data.startsWith(month)).sort((a,b)=>b.data.localeCompare(a.data)),monthYield=yieldIn(monthRows.filter(r=>!inSeparateBox(r,separate)),month),spentInMonth=reserveSpent(monthRows.filter(r=>!inSeparateBox(r,separate)),'9999-12-31');
  const withdraws=operation==='retirada'||operation==='gasto';
  async function work(fn:()=>Promise<void>){if(busy)return;setBusy(true);setError('');try{await fn();}catch(reason){setError(reason instanceof Error?reason.message:'Não foi possível salvar.');}finally{setBusy(false);}}
  async function submit(e:React.FormEvent){
@@ -49,14 +50,14 @@ export default function ReserveBoxesPanel({account,reserves,month,categories,ope
   if(row.id===undefined||!confirm(row.gasto?'Excluir este gasto da reserva? O valor volta para a reserva.':row.implantacao?'Excluir esta implantação de saldo? O valor sai da reserva e do total.':'Excluir este movimento da reserva?'))return;
   await work(()=>removeReserveRow(db,account.id,row.id!));
  }
- const card=(id:string,name:string,goal?:number,apartBox?:boolean)=>{const amount=boxBalance(reserves,id),pct=goal?Math.min(100,Math.max(0,amount/goal*100)):0;return <button type="button" key={id||'main'} className={`reserve-box${box===id?' selected':''}${apartBox?' apart':''}`} aria-pressed={box===id} onClick={()=>{setSelected(id);setBoxForm(null);setError('');}}>
-  <small>{name}</small><strong className={amount<0?'red':''}>{moeda(amount)}</strong>{apartBox&&<span className="reserve-box-tag">Fora da reserva</span>}
+ const card=(id:string,name:string,goal?:number,apartBox?:boolean)=>{const amount=boxBalance(reserves,id),boxMonthYield=yieldIn(rowsOfBox(reserves,id),month),pct=goal?Math.min(100,Math.max(0,amount/goal*100)):0;return <button type="button" key={id||'main'} className={`reserve-box${box===id?' selected':''}${apartBox?' apart':''}`} aria-pressed={box===id} onClick={()=>{setSelected(id);setBoxForm(null);setError('');}}>
+  <small>{name}</small><strong className={amount<0?'red':''}>{moeda(amount)}</strong>{apartBox&&<span className="reserve-box-tag">Fora da reserva</span>}{boxMonthYield>0&&<small className="reserve-box-yield">Rendeu +{moeda(boxMonthYield)} no mês</small>}
   {goal?<><span className="reserve-box-goal" aria-hidden="true"><span style={{width:`${pct}%`}}/></span><small>{Math.floor(pct)}% de {moeda(goal)}</small></>:null}
  </button>;};
- const label=(row:Reserva)=>row.gasto?'Gasto da reserva':row.implantacao?'Implantação de saldo':row.emprestimoId?(row.valorCentavos<0?'Empréstimo':'Devolução de empréstimo'):row.valorCentavos<0?'Resgate':'Depósito';
- return <details id="reserva-panel" className="panel collapsible-panel"><summary>Reserva financeira</summary>
+ const label=(row:Reserva)=>row.gasto?'Gasto da reserva':row.implantacao?'Implantação de saldo':row.rendimento?'Rendimento':row.emprestimoId?(row.valorCentavos<0?'Empréstimo':'Devolução de empréstimo'):row.valorCentavos<0?'Resgate':'Depósito';
+ return <details id="reserva-panel" className="panel collapsible-panel" open={defaultOpen}><summary>Reserva financeira</summary>
   <p className="muted">Separe dinheiro na reserva principal ou em caixinhas (viagem, carro, presentes...). Não conta como despesa de consumo.</p>
-  <div className="reserve-summary"><div><small>Total guardado</small><strong>{moeda(total)}</strong></div>{separate.size>0&&<div><small>Fora da reserva</small><strong>{moeda(apart)}</strong></div>}{spentInMonth>0&&<div><small>Gasto da reserva no mês</small><strong className="red">{moeda(spentInMonth)}</strong></div>}</div>
+  <div className="reserve-summary"><div><small>Total guardado</small><strong>{moeda(total)}</strong></div>{separate.size>0&&<div><small>Fora da reserva</small><strong>{moeda(apart)}</strong></div>}{monthYield>0&&<div><small>Rendimentos no mês</small><strong className="green">+{moeda(monthYield)}</strong></div>}{spentInMonth>0&&<div><small>Gasto da reserva no mês</small><strong className="red">{moeda(spentInMonth)}</strong></div>}</div>
   <div className="reserve-boxes" role="group" aria-label="Escolha a reserva">
    {card(MAIN_RESERVE,mainReserveName(account),account.reservaPrincipal?.metaCentavos)}
    {boxes.map(c=>card(c.id,c.nome,c.metaCentavos,c.foraDaReserva))}
@@ -73,11 +74,11 @@ export default function ReserveBoxesPanel({account,reserves,month,categories,ope
    {boxForm.id&&<button type="button" className="secondary" onClick={()=>void deleteBox(boxForm.id!)}><Trash2 size={16}/>Excluir caixinha</button>}
    <button type="button" className="secondary" onClick={()=>{setBoxForm(null);setError('');}}>Cancelar</button>
   </form>:<>
-   <div className="reserve-box-head"><h4>{boxName(account,box)} · {moeda(balance)}</h4><button type="button" className="textbutton" onClick={()=>{if(!box){const m=account.reservaPrincipal;setBoxForm({main:true,nome:mainReserveName(account),meta:m?.metaCentavos?String(m.metaCentavos/100):'',separada:false});setError('');return;}const c=boxes.find(x=>x.id===box)!;setBoxForm({id:c.id,nome:c.nome,meta:c.metaCentavos?String(c.metaCentavos/100):'',separada:!!c.foraDaReserva});setError('');}}><Pencil size={14}/>Editar</button></div>
+   <div className="reserve-box-head"><h4>{boxName(account,box)} · {moeda(balance)}{yieldIn(rowsOfBox(reserves,box),month.slice(0,4))>0&&<small className="reserve-box-yield"> Rendeu +{moeda(yieldIn(rowsOfBox(reserves,box),month))} no mês · +{moeda(yieldIn(rowsOfBox(reserves,box),month.slice(0,4)))} em {month.slice(0,4)}</small>}</h4><button type="button" className="textbutton" onClick={()=>{if(!box){const m=account.reservaPrincipal;setBoxForm({main:true,nome:mainReserveName(account),meta:m?.metaCentavos?String(m.metaCentavos/100):'',separada:false});setError('');return;}const c=boxes.find(x=>x.id===box)!;setBoxForm({id:c.id,nome:c.nome,meta:c.metaCentavos?String(c.metaCentavos/100):'',separada:!!c.foraDaReserva});setError('');}}><Pencil size={14}/>Editar</button></div>
    <div className="filters segmented reserve-actions" role="tablist" aria-label="Tipo de movimento da reserva">{ACTIONS.map(a=><button type="button" key={a.id} role="tab" aria-selected={operation===a.id} className={operation===a.id?'active':''} onClick={()=>setOperation(a.id)}>{a.label}</button>)}</div>
    <p className="muted reserve-hint">{HINTS[operation]}</p>
    <form className="fields reserve-form" onSubmit={submit}>
-    <label>{operation==='gasto'?'Com o que gastou':'Descrição'}<input required maxLength={80} placeholder={operation==='gasto'?'Ex.: Conserto do carro':operation==='implantacao'?'Ex.: Saldo da caixinha do banco':'Ex.: Guardar para a viagem'} value={desc} onChange={e=>setDesc(e.target.value)}/></label>
+    <label>{operation==='gasto'?'Com o que gastou':'Descrição'}<input required maxLength={80} placeholder={operation==='gasto'?'Ex.: Conserto do carro':operation==='implantacao'?'Ex.: Saldo da caixinha do banco':operation==='rendimento'?'Ex.: Rendimento de novembro':'Ex.: Guardar para a viagem'} value={desc} onChange={e=>setDesc(e.target.value)}/></label>
     <label>{operation==='gasto'?'Valor gasto (R$)':'Valor (R$)'}<MoneyInput required min="0.01" max={withdraws?Math.max(0,balance)/100:undefined} placeholder="0,00" value={value} onChange={setValue}/></label>
     <label>Data<input required type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>
     {operation==='gasto'&&<label>Categoria (opcional)<select value={category} onChange={e=>setCategory(e.target.value)}><option value="">Sem categoria</option>{categories.map(c=><option key={c}>{c}</option>)}</select></label>}

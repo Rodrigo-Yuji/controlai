@@ -7,7 +7,7 @@ export interface Recorrencia { contaId?: string; id?: number; descricao: string;
 export interface Salario { id: string; contaId?: string; titular?: string; liquido: number; refeicao: number; beneficio: number; adicional: number; }
 export interface PlanejamentoMensal {valoresDistribuicao?:{variaveis:number;reserva:number};mes:string;baseReceita:'atual'|'prevista';baseCentavos:number;fixosCentavos:number;variaveisCentavos:number;reservaCentavos:number;fixos:number;variaveis:number;reserva:number;travadoEm:string}
 export interface Configuracao {valoresDistribuicao?:{variaveis:number;reserva:number}; planejamentos?:PlanejamentoMensal[]; id: string; contaId?: string; baseReceita?: 'atual'|'prevista'; fixos: number; variaveis: number; reserva: number; }
-export interface Reserva { contaId?: string; id?: number; descricao: string; valorCentavos: number; data: string; emprestimoId?: string; devolucaoId?: string; gasto?: true; categoria?: string; caixinhaId?: string; implantacao?: true; }
+export interface Reserva { contaId?: string; id?: number; descricao: string; valorCentavos: number; data: string; emprestimoId?: string; devolucaoId?: string; gasto?: true; categoria?: string; caixinhaId?: string; implantacao?: true; rendimento?: true; }
 export interface ReservaPrincipal { nome?: string; metaCentavos?: number; }
 export interface Caixinha { id: string; nome: string; metaCentavos?: number; foraDaReserva?: true; }
 export interface DevolucaoEmprestimo { id: string; data: string; valorCentavos: number; acrescimoCentavos?: number; }
