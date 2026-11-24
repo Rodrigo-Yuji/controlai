@@ -216,3 +216,10 @@ html[data-theme="escuro"] .loan-badge.settled{background:#12986e33;color:#6fd3ad
 @media(max-width:500px){.guest-you-figures{grid-template-columns:1fr 1fr}}
 div.reserves-summary-item{cursor:default}div.reserves-late{cursor:default}
 .reserves-loans{display:grid;gap:4px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line,#dce3ee)}
+/* Lista de cartões compacta */
+.card-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin:10px 0 4px}
+.card-chip{display:flex;align-items:center;gap:4px;padding:8px 6px 8px 12px;border:1px solid var(--line,#dce3ee);border-radius:12px;background:var(--card,#fff);min-width:0}
+.card-chip-body{display:flex;flex-direction:column;min-width:0;flex:1}.card-chip-body strong{font-size:14px;line-height:1.25;overflow-wrap:anywhere}.card-chip-body small{color:var(--muted-ink,#63728b);font-size:11px}
+.card-chip .iconbutton{min-width:28px;min-height:28px;padding:3px;flex-shrink:0}.card-chip.archived{opacity:.6}
+.card-chips-legend{display:block;margin-bottom:8px}
+@media(max-width:500px){.card-chips{grid-template-columns:repeat(2,minmax(0,1fr))}.card-chip{padding:7px 2px 7px 10px;gap:0}.card-chip .iconbutton{min-width:26px;min-height:26px}}
