@@ -15,6 +15,9 @@ export interface Draft {
   origemImportacao?: string;
   cartaoId?: string;
   faturaMes?: string;
+  // Installment found in a note ("Parcela 3 de 10") and the card section of a monthly plan.
+  parcela?: {grupo: string; numero: number; total: number};
+  secao?: string;
   selecionada: boolean;
   linha: number;
 }
@@ -172,6 +175,7 @@ export function toEntry(draft: Draft, accountId: string, categories: Categoria[]
   return {contaId: accountId, descricao: draft.descricao.trim(), valorCentavos: money(draft.valor)!, data: draft.data, tipo: draft.tipo as Tipo,
     categoria: category.nome, natureza: category.natureza as Natureza, status: draft.status as Status, observacao: draft.observacao.trim(),
     ...(draft.origemImportacao ? {origemImportacao:draft.origemImportacao} : {}),
+    ...(draft.tipo==='despesa'&&draft.parcela?{parcela:{...draft.parcela}}:{}),
     ...(draft.tipo==='despesa'&&draft.cartaoId?{cartaoId:draft.cartaoId,...(draft.faturaMes?{faturaMes:draft.faturaMes}:{})}:{})};
 }
 export function fingerprint(entry: Lancamento): string {
