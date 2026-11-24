@@ -53,6 +53,11 @@ inteira: evite anexos. O tamanho do banco, o tráfego, as condições de inativi
 ou pausa e as demais cotas do Supabase devem ser acompanhados no painel do projeto.
 Credenciais públicas não substituem RLS, e backups regulares continuam necessários.
 
+O histórico de alterações (`historico-compacto.sql` e depois `historico-limite.sql`) guarda
+no máximo 500 registros ou 60 dias por login. Criações ficam só com um resumo, importações
+viram um único registro e exclusões ainda na lixeira (30 dias) não entram no corte.
+Depois de aplicar `historico-limite.sql`, `vacuum full public.controlai_history;` devolve o espaço.
+
 Sair do login pausa a sincronização e mantém os dados locais. Trocar projeto ou
 login exige uma nova escolha explícita da origem, sem enviar automaticamente os
 dados do usuário anterior. A senha de login não é armazenada pelo ControlAI; a
