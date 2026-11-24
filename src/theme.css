@@ -249,3 +249,4 @@ html[data-theme="escuro"] .card-pick{background:color-mix(in srgb,var(--card-col
 .invoice-bars{display:grid;gap:6px;margin:6px 0 12px}.invoice-bar-row{display:grid;grid-template-columns:minmax(70px,30%) 1fr auto;gap:8px;align-items:center;font-size:12px}
 .invoice-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.invoice-bar-track{height:10px;border-radius:6px;background:color-mix(in srgb,var(--line,#dce3ee) 60%,transparent);overflow:hidden}.invoice-bar-track>span{display:block;height:100%;border-radius:6px;background:var(--brand)}
 .invoice-bars.upcoming .invoice-bar-track>span{background:#e9a528}
+.card-chip{display:grid!important;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;row-gap:2px}.card-chip-days{grid-column:1/-1;font-size:11px;color:var(--muted-ink,#63728b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
