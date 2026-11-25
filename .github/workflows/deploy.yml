@@ -10,6 +10,7 @@ on:
         type: string
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 concurrency:
@@ -59,6 +60,18 @@ jobs:
         with:
           name: ${{ env.PAGES_ARTIFACT }}
           path: dist
+      # O GitHub às vezes demora alguns segundos para listar o pacote recém-enviado e o deploy
+      # falha com "No artifacts named ...". Espera até ele aparecer (no máximo ~2 min).
+      - name: Aguardar o pacote do site ficar disponível
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 24); do
+            n=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq "[.artifacts[] | select(.name == \"$PAGES_ARTIFACT\")] | length" || echo 0)
+            if [ "$n" -gt 0 ]; then echo "Pacote disponível."; sleep 5; exit 0; fi
+            echo "Aguardando o pacote ($i/24)..."; sleep 5
+          done
+          echo "Pacote ainda não listado; tentando publicar mesmo assim."
       - id: deployment
         uses: actions/deploy-pages@v4
         with:
