@@ -272,3 +272,8 @@ html[data-theme="escuro"] .card-pick{background:color-mix(in srgb,var(--card-col
 .recurring-pay{border:0;border-radius:10px;padding:5px 14px;background:var(--brand);color:#fff;font-weight:700;font-size:12px;cursor:pointer;margin-right:auto}
 .recurring-others{margin-top:8px;font-size:13px}.recurring-others summary{cursor:pointer;color:var(--muted-ink,#63728b)}.recurring-other{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line,#e8edf3)}
 html[data-theme="escuro"] .recurring-state.pulado{background:#ffffff14;color:#a3b3c7}
+/* Peso dos gastos: coluna de média mensal */
+.category-table>div{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(82px,auto);gap:10px;align-items:center}
+.category-table .category-head{font-size:11px;font-weight:700;color:var(--muted-ink,#63728b);text-transform:uppercase;letter-spacing:.3px;border-bottom:1px solid var(--line,#e8edf3);padding-bottom:4px}.category-table .category-head span:not(:first-child){text-align:right}
+.category-table strong{text-align:right;white-space:nowrap}.category-table strong small{display:block;font-size:11px;font-weight:600;color:var(--muted-ink,#63728b)}
+.category-table .category-avg{color:var(--brand)}.category-avg-note{font-size:12px;margin-top:6px}
