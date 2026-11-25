@@ -253,3 +253,22 @@ html[data-theme="escuro"] .card-pick{background:color-mix(in srgb,var(--card-col
 .invoice-hero-actions{display:flex;align-items:center;gap:6px;position:relative;z-index:1}.invoice-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:0;background:#ffffff22;color:#fff;cursor:pointer}.invoice-icon:hover{background:#ffffff40}
 .card-pick.add{align-items:center;justify-content:center;min-width:96px;border:2px dashed var(--line,#cfd8e3);background:transparent;color:var(--brand);font-weight:700;font-size:12px;gap:4px}
 .cards-panel .card-invoice{border-top:0!important;padding-top:0!important;margin-top:8px!important}
+/* Recorrentes: situação do mês */
+.recurring-panel .sectiontitle{align-items:center;margin-bottom:4px}.recurring-panel .sectiontitle .secondary{display:inline-flex;align-items:center;gap:6px}
+.recurring-group{margin:14px 0 18px}
+.recurring-summary{padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand) 60%,#000));color:#fff;margin-bottom:8px}
+.recurring-group.income .recurring-summary{background:linear-gradient(135deg,#1f4e8c,color-mix(in srgb,#1f4e8c 60%,#000))}
+.recurring-summary-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}.recurring-summary-top strong{font-size:15px}.recurring-summary-top span{font-size:13px;opacity:.9}
+.recurring-progress{height:8px;border-radius:8px;background:#ffffff33;overflow:hidden;margin:10px 0 8px}.recurring-progress>span{display:block;height:100%;background:#7dffc4;border-radius:8px}
+.recurring-chips{display:flex;flex-wrap:wrap;gap:6px}.rchip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#ffffff26;color:#fff}.rchip.late{background:#ffe1e4;color:#c23c48}.rchip.paid{background:#dff7e9;color:#187d4b}.rchip.open{background:#fff3d5;color:#9d6800}.rchip.skip{background:#ffffff26}.rchip.total{background:#fff;color:#19263a}
+.recurring-rows{display:grid}
+.recurring-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto;grid-template-areas:'dot body side' '. actions actions';column-gap:10px;row-gap:4px;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line,#e8edf3)}
+.recurring-dot{grid-area:dot;width:10px;height:10px;border-radius:50%;background:#e9a528}.recurring-row.pago .recurring-dot{background:#12986e}.recurring-row.atrasado .recurring-dot{background:#c23c48}.recurring-row.pulado .recurring-dot{background:#a8b3c4}.recurring-row.parcial .recurring-dot{background:linear-gradient(90deg,#12986e 50%,#e9a528 50%)}
+.recurring-body{grid-area:body;min-width:0;display:flex;flex-direction:column}.recurring-body strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.recurring-body small{font-size:11px;color:var(--muted-ink,#63728b)}
+.recurring-side{grid-area:side;display:flex;flex-direction:column;align-items:flex-end;gap:2px}.recurring-side strong{font-size:14px;white-space:nowrap}
+.recurring-state{font-size:10px;font-weight:800;padding:2px 8px;border-radius:12px;white-space:nowrap;background:#fff3d5;color:#9d6800}.recurring-state.pago{background:#dff7e9;color:#187d4b}.recurring-state.atrasado{background:#ffe1e4;color:#c23c48}.recurring-state.pulado{background:#eef1f6;color:#63728b}
+.recurring-row.pulado .recurring-body strong,.recurring-row.pulado .recurring-side strong{color:var(--muted-ink,#63728b);text-decoration:line-through}.recurring-row.pago .recurring-side strong{color:var(--muted-ink,#63728b)}
+.recurring-actions{grid-area:actions;display:flex;align-items:center;gap:4px;justify-content:flex-end}.recurring-actions .textbutton{font-size:12px;padding:4px 6px}.recurring-actions .iconbutton{min-width:28px;min-height:28px;padding:3px}
+.recurring-pay{border:0;border-radius:10px;padding:5px 14px;background:var(--brand);color:#fff;font-weight:700;font-size:12px;cursor:pointer;margin-right:auto}
+.recurring-others{margin-top:8px;font-size:13px}.recurring-others summary{cursor:pointer;color:var(--muted-ink,#63728b)}.recurring-other{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line,#e8edf3)}
+html[data-theme="escuro"] .recurring-state.pulado{background:#ffffff14;color:#a3b3c7}
