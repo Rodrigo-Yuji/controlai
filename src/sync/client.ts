@@ -13,6 +13,24 @@ export function validateConfig(value:SyncConfig):SyncConfig {
  return {url,key};
 }
 export class SyncError extends Error {code:string;constructor(message:string,code='REMOTE'){super(message);this.code=code;}}
+// Várias telas criam o próprio cliente (sincronização, histórico, solicitações...). O Supabase
+// gira o refresh token a cada renovação e derruba a sessão inteira se um token já usado for
+// reenviado. Por isso a renovação é única: os clientes compartilham a sessão mais nova desta aba,
+// também leem a sessão salva do login, renovações simultâneas aguardam a mesma requisição e,
+// quando o navegador permite, uma trava evita que duas abas renovem ao mesmo tempo.
+const freshSessions=new Map<string,Session>();
+const refreshing=new Map<string,Promise<unknown>>();
+function storedSessions():Session[]{
+ const found:Session[]=[];
+ try{for(const storage of [globalThis.sessionStorage,globalThis.localStorage]){const value=storage?.getItem('controlai.login.v2');if(value){const parsed=JSON.parse(value) as {session?:Session};if(parsed?.session?.refresh_token)found.push(parsed.session);}}}catch{/* Sem armazenamento disponível. */}
+ return found;
+}
+export function freshestSession(own:Session):Session{
+ let best=own;
+ for(const candidate of [freshSessions.get(own.user.id),...storedSessions()])if(candidate&&candidate.user?.id===own.user.id&&candidate.expires_at>best.expires_at)best=candidate;
+ return best;
+}
+export function forgetSharedSessions(){freshSessions.clear();refreshing.clear();}
 export class SupabaseClient {
  readonly config:SyncConfig;private session:Session|null;private saveSession:(session:Session)=>Promise<void>;
  constructor(config:SyncConfig,session:Session|null,saveSession:(session:Session)=>Promise<void>){this.config=config;this.session=session;this.saveSession=saveSession;}
@@ -35,6 +53,7 @@ export class SupabaseClient {
     if(response.status===403||data?.code==='42501')throw new SyncError('Acesso não autorizado ou revogado.','FORBIDDEN');
     if(response.status===401)throw new SyncError('Entre novamente para continuar a sincronização.','AUTH');
     if(response.status===404||data?.code==='PGRST202'||data?.code==='42P01')throw new SyncError('Configure o banco com o arquivo supabase/setup.sql antes de sincronizar.','SETUP');
+    if(path.includes('grant_type=refresh_token'))throw new SyncError('Sua sessão expirou neste aparelho. Toque em Sair do login e entre novamente para voltar a sincronizar.','AUTH');
     throw new SyncError(path.startsWith('/auth/')?'Não foi possível entrar. Confira e-mail, senha e confirmação do e-mail.':'Não foi possível sincronizar. Confira a configuração e a conexão.');
    }
    return data;
@@ -46,7 +65,7 @@ export class SupabaseClient {
   if(!session?.access_token||!session.refresh_token||!session.user?.id)throw new SyncError('Confirme seu e-mail e depois entre com sua senha.','CONFIRM_EMAIL');
   session.expires_at=session.expires_at||Math.floor(Date.now()/1000)+(session.expires_in||3600);
   if(this.session&&this.session.user.id!==session.user.id)throw new SyncError('O login mudou. Entre novamente para conectar os dados explicitamente.','AUTH');
-  this.session=session;await this.saveSession(session);return session;
+  this.session=session;freshSessions.set(session.user.id,session);await this.saveSession(session);return session;
  }
  async login(email:string,password:string){return this.accept(await this.request('/auth/v1/token?grant_type=password',{email,password}));}
  async signup(email:string,password:string,viewer=false){
@@ -70,7 +89,18 @@ export class SupabaseClient {
  }
  private async token(){
   if(!this.session)throw new SyncError('Entre para sincronizar.','AUTH');
-  if(this.session.expires_at<Date.now()/1000+30)await this.accept(await this.request('/auth/v1/token?grant_type=refresh_token',{refresh_token:this.session.refresh_token}));
+  this.session=freshestSession(this.session);
+  if(this.session.expires_at<Date.now()/1000+30){
+   const run=async()=>{
+    const current=freshestSession(this.session!);
+    if(current.expires_at>=Date.now()/1000+30)return current;
+    const key=current.refresh_token;let pending=refreshing.get(key);
+    if(!pending){pending=this.request('/auth/v1/token?grant_type=refresh_token',{refresh_token:key});refreshing.set(key,pending);pending.catch(()=>{}).finally(()=>setTimeout(()=>refreshing.delete(key),10000));}
+    return pending;
+   };
+   const locks=(globalThis.navigator as {locks?:{request:<T>(name:string,callback:()=>Promise<T>)=>Promise<T>}}|undefined)?.locks;
+   await this.accept(locks?await locks.request('controlai-auth-refresh',run):await run());
+  }
   return this.session!.access_token;
  }
  async accountViewers(accountId:string){return await this.request('/rest/v1/rpc/controlai_account_viewers',{p_account:accountId},await this.token()) as {email:string;created_at:string;pessoa_id?:string|null;nome?:string|null}[];}
