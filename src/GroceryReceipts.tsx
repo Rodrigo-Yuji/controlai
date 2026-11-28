@@ -1,12 +1,13 @@
 import {useEffect,useState,type FormEvent} from 'react';
 import {createClient} from '@supabase/supabase-js';
 import {dataBR,moeda} from './utils';
+import {toReceipt,type GroceryReceipt} from './grocery-receipts';
+export type {GroceryReceipt};
 
 const groceries=createClient('https://vdlmvlycofddjmdzffyd.supabase.co','sb_publishable_L7OvV-QDf12iD3L3IAAJag_jZ8QCK9z',{
  auth:{storageKey:'controlai-groceries-session',detectSessionInUrl:false}
 });
 type House={id:string;name:string};
-export type GroceryReceipt={id:string;market:string;date:string;total:number;lines:{name:string;quantity:number;unit:string;total:number}[]};
 type Props={accountId:string;reviewed:Set<string>;onReview:(receipt:GroceryReceipt)=>void};
 
 export default function GroceryReceipts({accountId,reviewed,onReview}:Props){
@@ -16,7 +17,7 @@ export default function GroceryReceipts({accountId,reviewed,onReview}:Props){
  const [signedIn,setSignedIn]=useState(false);
  const [receipts,setReceipts]=useState<GroceryReceipt[]>([]);
  const [error,setError]=useState('');
- const [busy,setBusy]=useState(false);
+ const [busy,setBusy]=useState(false),[all,setAll]=useState(false);
  useEffect(()=>{
   let active=true;
   async function load(){
@@ -33,10 +34,10 @@ export default function GroceryReceipts({accountId,reviewed,onReview}:Props){
     if(!available?.some(row=>row.id===house)){setReceipts([]);return;}
     const next:GroceryReceipt[]=[];
     for(let offset=0;;offset+=250){
-     const {data,error:receiptError}=await groceries.from('grocery_records').select('id,data').eq('household_id',house).eq('kind','purchase').eq('deleted',false).contains('data',{controlAIEligible:true}).order('id').range(offset,offset+249);
+     const {data,error:receiptError}=await groceries.from('grocery_records').select('id,data').eq('household_id',house).eq('kind','purchase').eq('deleted',false).order('id').range(offset,offset+249);
      if(receiptError)throw receiptError;
      if(!active)return;
-     next.push(...(data??[]).map(row=>({...row.data,id:row.id}) as GroceryReceipt));
+     for(const row of data??[]){const receipt=toReceipt(String(row.id),row.data);if(receipt)next.push(receipt);}
      if(!data||data.length<250)break;
     }
     setReceipts(next.sort((a,b)=>b.date.localeCompare(a.date)));
@@ -66,6 +67,7 @@ export default function GroceryReceipts({accountId,reviewed,onReview}:Props){
  return <details><summary>Cupons do Groceries ({pending.length} pendentes)</summary>
   {signedIn?<><label>Casa vinculada<select value={house} onChange={e=>selectHouse(e.target.value)}><option value="">Selecione a casa</option>{houses.map(row=><option key={row.id} value={row.id}>{row.name}</option>)}</select></label><button type="button" className="textbutton" onClick={()=>{selectHouse('');void groceries.auth.signOut({scope:'local'});}}>Desvincular Groceries</button></>:<form className="fields" onSubmit={signIn}><label>E-mail do Groceries<input type="email" name="email" required autoComplete="username"/></label><label>Senha do Groceries<input type="password" name="password" required autoComplete="current-password"/></label><button type="submit" className="secondary" disabled={busy}>Vincular Groceries</button></form>}
   {error&&<p role="alert">{error}</p>}
-  {pending.map(receipt=><div className="record" key={receipt.id}><div className="recordbody"><strong>{receipt.market}</strong><small>{dataBR(receipt.date)} · {moeda(Math.round(receipt.total*100))}</small></div><button type="button" className="secondary" onClick={()=>onReview(receipt)}>Revisar cupom</button></div>)}
+  {(all?pending:pending.slice(0,10)).map(receipt=><div className="record" key={receipt.id}><div className="recordbody"><strong>{receipt.market}</strong><small>{dataBR(receipt.date)} · {moeda(Math.round(receipt.total*100))}</small></div><button type="button" className="secondary" onClick={()=>onReview(receipt)}>Revisar cupom</button></div>)}
+  {pending.length>10&&<button type="button" className="textbutton" onClick={()=>setAll(v=>!v)}>{all?'Mostrar menos':`Mostrar mais (${pending.length-10})`}</button>}
  </details>;
 }
