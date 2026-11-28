@@ -34,7 +34,7 @@ export default function GroceryReceipts({accountId,reviewed,onReview}:Props){
     if(!available?.some(row=>row.id===house)){setReceipts([]);return;}
     const next:GroceryReceipt[]=[];
     for(let offset=0;;offset+=250){
-     const {data,error:receiptError}=await groceries.from('grocery_records').select('id,data').eq('household_id',house).eq('kind','purchase').eq('deleted',false).order('id').range(offset,offset+249);
+     const {data,error:receiptError}=await groceries.from('grocery_records').select('id,data').eq('household_id',house).eq('kind','purchase').eq('deleted',false).contains('data',{controlAIEligible:true}).order('id').range(offset,offset+249);
      if(receiptError)throw receiptError;
      if(!active)return;
      for(const row of data??[]){const receipt=toReceipt(String(row.id),row.data);if(receipt)next.push(receipt);}
